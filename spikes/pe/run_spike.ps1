@@ -58,8 +58,8 @@ try {
     Export-Certificate -Cert $Cert -FilePath $PublicCert | Out-Null
     # Use Windows' unattended import for this disposable public certificate.
     # Interactive root-store UI cannot be serviced on a hosted CI desktop.
-    Run-Native "certutil" @("-user", "-f", "-addstore", "Root", $PublicCert)
     $RootPath = "Cert:\CurrentUser\Root\$($Cert.Thumbprint)"
+    Run-Native "certutil" @("-user", "-f", "-addstore", "Root", $PublicCert)
     Write-Output "Signing and verifying the copied test EXE."
     Run-Native $SignTool @("sign", "/fd", "SHA256", "/s", "My", "/sha1", $Cert.Thumbprint, $Exe)
     Run-Native $SignTool @("verify", "/pa", "/v", $Exe)

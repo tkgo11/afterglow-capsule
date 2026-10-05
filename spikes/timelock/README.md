@@ -26,7 +26,7 @@ Only cryptographic verification/decryption authorizes the test's success. A
 monotonic clock bounds the wait and does not authorize release. Endpoint or pin
 changes require review of external assumptions; the runner never adopts them.
 
-Historical checks and the three pure live-input tests passed locally on Linux.
+Historical checks and the five pure live-input/transport-failure tests passed locally on Linux.
 The live relay is blocked by this workspace's proxy policy; Windows execution
 must be collected through CI. See the [evidence record](../../docs/decisions/spike-a-timelock.md).
 

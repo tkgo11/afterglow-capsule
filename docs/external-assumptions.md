@@ -106,8 +106,11 @@ Preferred authenticated NTS operators:
 These are experimental inputs, not production defaults or a completed external
 review. The drand relay is listed by the pinned official Go reference; Cloudflare's
 hostname was confirmed in its public documentation source on 2026-10-05. The
-Netnod hostname is listed by the selected NTS candidate's README and still needs
-confirmation against Netnod's official documentation. That site and the drand
+original Netnod hostname was listed by the selected NTS candidate's README.
+Windows CI fetched Netnod's official documentation on 2026-10-05 and found that
+the original alias is no longer listed; the candidate below is now the documented
+hostname. Live authentication at that documented hostname still needs validation.
+That site and the drand
 relay returned proxy-policy HTTP 403 in this workspace. Neither NTS operator has
 been reached from this Linux environment. Passing TLS and authenticated NTP tests
 alone does not establish operator independence or close the review checklist.
@@ -119,8 +122,15 @@ recognize that response as well as 404. Neither status authorizes release. The
 first live run stopped at this scheduling mismatch; after-round decryption still
 needs a passing rerun. The same Windows run obtained NTS-authenticated responses
 from both candidates with RTTs of 3,394 and 117,472 microseconds respectively.
-Netnod's official hostname/provenance review and all remaining gates still apply.
+Netnod's documented hostname must be tested separately; all remaining gates apply.
 Evidence: https://github.com/tkgo11/afterglow-capsule/actions/runs/37288622769/job/111693473097
+
+A subsequent Windows run confirmed target-round absence and pre-round rejection,
+then received HTTP 500 while polling. Transient server failures may be retried
+with a bounded budget, but must never be interpreted as future-round absence or
+successful release evidence. The same run fetched both official NTS documentation
+pages, which exposed the stale Netnod alias above.
+Evidence: https://github.com/tkgo11/afterglow-capsule/actions/runs/37289490311/job/111696272208
 
 Sources:
 
@@ -144,7 +154,7 @@ Sources:
     },
     {
       "operator": "Netnod",
-      "host": "nts.ntp.se",
+      "host": "nts.netnod.se",
       "documentation_url": "https://www.netnod.se/netnod-time/how-to-use-nts"
     }
   ]

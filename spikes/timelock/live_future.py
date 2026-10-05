@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -43,8 +44,18 @@ def validate_info(info, pinned):
 
 def get_json(url):
     # Preserve normal proxy settings, platform TLS roots, and certificate checks.
-    with urllib.request.urlopen(url, timeout=10) as response:
-        data = response.read(16385)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=10) as response:
+                data = response.read(16385)
+            break
+        except urllib.error.HTTPError as error:
+            if error.code not in [500, 502, 503, 504] or attempt == 2:
+                raise
+            # A transient server error is recorded as a transport retry, never
+            # as pre-round absence or release evidence. Three failures abort.
+            print(f"public relay HTTP {error.code}; bounded transport retry {attempt + 1}/2", file=sys.stderr)
+            time.sleep(attempt + 1)
     if len(data) > 16384:
         raise ValueError("relay response exceeds the spike limit")
     return json.loads(data)

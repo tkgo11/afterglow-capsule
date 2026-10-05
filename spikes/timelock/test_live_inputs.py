@@ -2,10 +2,28 @@
 
 import copy
 import unittest
-from live_future import fixture, is_future_round_unavailable, validate_info, validate_relay
+from unittest.mock import patch
+import urllib.error
+from live_future import fixture, get_json, is_future_round_unavailable, validate_info, validate_relay
 
 
 class LiveInputs(unittest.TestCase):
+    def test_three_server_failures_abort_instead_of_becoming_release_evidence(self):
+        error = urllib.error.HTTPError("https://relay.example", 500, "test server failure", {}, None)
+        with patch("live_future.urllib.request.urlopen", side_effect=error) as request, patch("live_future.time.sleep"):
+            with self.assertRaises(urllib.error.HTTPError):
+                get_json("https://relay.example")
+        self.assertEqual(request.call_count, 3)
+
+    def test_transport_retries_do_not_mask_access_denial_or_future_responses(self):
+        for status in [401, 403, 404, 425]:
+            error = urllib.error.HTTPError("https://relay.example", status, "public test status", {}, None)
+            with patch("live_future.urllib.request.urlopen", side_effect=error) as request, patch("live_future.time.sleep") as sleep:
+                with self.assertRaises(urllib.error.HTTPError):
+                    get_json("https://relay.example")
+            self.assertEqual(request.call_count, 1)
+            sleep.assert_not_called()
+
     def test_future_statuses_do_not_hide_authentication_or_server_failures(self):
         for status in [404, 425]:
             self.assertTrue(is_future_round_unavailable(status))
