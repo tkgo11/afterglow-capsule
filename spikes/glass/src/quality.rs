@@ -9,6 +9,15 @@ pub enum Quality {
 }
 
 impl Quality {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Full => "full",
+            Self::Reduced => "reduced",
+            Self::Static => "static",
+            Self::Opaque => "opaque",
+        }
+    }
+
     pub fn shader_value(self) -> f32 {
         match self {
             Self::Full => 0.0,

@@ -1,9 +1,20 @@
 //! SPIKE ONLY. Windowed public synthetic scene; no production capsule/release code.
 //! Frame intervals measure presented application cadence, not GPU execution time.
 
+mod input;
+mod protocol;
 mod quality;
 
-use std::{error::Error, sync::Arc, time::Instant};
+use input::InputDriver;
+use protocol::{
+    Options, Samples, adapter_json, check_dimensions, emit, native_dpi, select_adapter, statistics,
+};
+use serde_json::json;
+use std::{
+    error::Error,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use quality::Quality;
 use winit::{
@@ -31,31 +42,36 @@ struct Gpu {
     atmosphere_bindings: wgpu::BindGroup,
     atmosphere: wgpu::RenderPipeline,
     glass: wgpu::RenderPipeline,
+    adapter: wgpu::AdapterInfo,
 }
 
 impl Gpu {
-    async fn new(window: Arc<Window>) -> Result<Self> {
+    async fn new(window: Arc<Window>, options: &Options) -> Result<Self> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let surface = instance.create_surface(window.clone())?;
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                compatible_surface: Some(&surface),
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                force_fallback_adapter: false,
-            })
-            .await?;
-        let info = adapter.get_info();
-        println!(
-            "adapter={info:?}; OS={}; scale={}",
-            std::env::consts::OS,
-            window.scale_factor()
+        let adapters = instance.enumerate_adapters(wgpu::Backends::DX12 | wgpu::Backends::VULKAN);
+        let infos: Vec<_> = adapters
+            .iter()
+            .map(|adapter| (adapter.get_info(), adapter.is_surface_supported(&surface)))
+            .collect();
+        emit(
+            "adapter_inventory",
+            json!({"adapters":infos.iter().map(|(info,_)|adapter_json(info)).collect::<Vec<_>>()}),
         );
-        if !matches!(
-            info.device_type,
-            wgpu::DeviceType::IntegratedGpu | wgpu::DeviceType::DiscreteGpu
-        ) {
-            return Err("reference hardware must be an integrated or discrete GPU; software/unknown adapters cannot satisfy Spike D".into());
+        let selected = select_adapter(&infos, options.class, options.adapter_name.as_deref())?;
+        let adapter = &adapters[selected];
+        let info = adapter.get_info();
+        if !options.class.matches(&info) {
+            return Err("actual adapter class differs from requested class".into());
         }
+        let actual_size = window.inner_size();
+        native_dpi(&window)?;
+        check_dimensions(
+            options,
+            actual_size.width,
+            actual_size.height,
+            window.scale_factor(),
+        )?;
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("Spike D"),
@@ -64,7 +80,7 @@ impl Gpu {
             .await?;
         let size = window.inner_size();
         let mut config = surface
-            .get_default_config(&adapter, size.width.max(1), size.height.max(1))
+            .get_default_config(adapter, size.width.max(1), size.height.max(1))
             .ok_or("no compatible surface configuration")?;
         config.present_mode = wgpu::PresentMode::Fifo;
         surface.configure(&device, &config);
@@ -177,6 +193,7 @@ impl Gpu {
             atmosphere_bindings,
             atmosphere,
             glass,
+            adapter: info,
         })
     }
 
@@ -299,16 +316,74 @@ impl Gpu {
 }
 
 struct Probe {
-    size: PhysicalSize<u32>,
+    options: Options,
     gpu: Option<Gpu>,
     quality: Quality,
-    start: Instant,
+    launched: Instant,
+    warmup_start: Option<Instant>,
     last: Option<Instant>,
-    frames: Vec<f64>,
+    samples: Samples,
+    driver: InputDriver,
     pointer: [f32; 2],
-    inputs: u64,
-    paused: bool,
+    focused: bool,
+    collecting: bool,
+    windows: u32,
     failed: bool,
+    completed: bool,
+}
+
+impl Probe {
+    fn fail(&mut self, event_loop: &ActiveEventLoop, reason: impl ToString) {
+        if !self.completed {
+            let reason = reason.to_string();
+            emit("failure", json!({"reason":reason}));
+            emit(
+                "complete",
+                json!({"status":"FAIL","windows_collected":self.windows,"reason":reason}),
+            );
+            self.failed = true;
+            self.completed = true;
+        }
+        event_loop.exit();
+    }
+    fn sample(&mut self, event_loop: &ActiveEventLoop) {
+        if let Err(reason) = self.samples.validate(self.options.drive_input) {
+            self.fail(event_loop, reason);
+            return;
+        }
+        let gpu = self.gpu.as_ref().unwrap();
+        let measured_dpi = match native_dpi(&gpu.window) {
+            Ok(value) => value,
+            Err(reason) => {
+                self.fail(event_loop, reason);
+                return;
+            }
+        };
+        let (average, p95) = statistics(&self.samples.intervals).unwrap();
+        let (present_average, present_p95) = statistics(&self.samples.event_to_present).unwrap();
+        let ack = statistics(&self.samples.acknowledgements);
+        let next = self.quality.degrade(average);
+        self.windows += 1;
+        emit(
+            "sample",
+            json!({"index":self.windows,"frames":self.samples.intervals.len(),
+            "width":gpu.config.width,"height":gpu.config.height,"actual_dpi_percent":gpu.window.scale_factor()*100.0,"native_dpi":measured_dpi,"dpi_awareness":"PerMonitorAware",
+            "mode":self.quality.name(),"next_mode":next.name(),"interval_avg_ms":average,"interval_p95_ms":p95,
+            "pointer_events":self.samples.pointer_events,"keyboard_events":self.samples.keyboard_events,
+            "input_ack_count":self.samples.acknowledgements.len(),"input_ack_avg_ms":ack.map(|x|x.0),"input_ack_p95_ms":ack.map(|x|x.1),
+            "event_to_present_count":self.samples.event_to_present.len(),"event_to_present_avg_ms":present_average,"event_to_present_p95_ms":present_p95}),
+        );
+        self.quality = next;
+        self.samples = Samples::default();
+        if self.windows == self.options.windows {
+            emit(
+                "complete",
+                json!({"status":"PASS","windows_collected":self.windows,"reason":"machine observations complete; physical provenance and human responsiveness/foreground observations require separate acceptance"}),
+            );
+            self.completed = true;
+            event_loop.exit();
+        }
+    }
 }
 
 impl ApplicationHandler for Probe {
@@ -317,20 +392,57 @@ impl ApplicationHandler for Probe {
             return;
         }
         let result = event_loop.create_window(Window::default_attributes()
-            .with_title("SPIKE D — public synthetic scene; 1 Full, 2 Reduced, 3 Opaque, Escape Exit")
-            .with_inner_size(self.size))
+            .with_title("SPIKE D — public synthetic input probe; F8 harmless input; Escape fails incomplete cell")
+            .with_resizable(false)
+            .with_inner_size(PhysicalSize::new(self.options.width,self.options.height)))
             .map_err(|error| -> Box<dyn Error> { error.into() })
-            .and_then(|window| pollster::block_on(Gpu::new(Arc::new(window))));
+            .and_then(|window| pollster::block_on(Gpu::new(Arc::new(window), &self.options)));
         match result {
             Ok(gpu) => {
+                let measured_dpi = match native_dpi(&gpu.window) {
+                    Ok(value) => value,
+                    Err(reason) => {
+                        self.fail(event_loop, reason);
+                        return;
+                    }
+                };
+                emit(
+                    "start",
+                    json!({"requested_gpu_class":self.options.class.name(),"requested_dpi_percent":self.options.dpi,
+                    "width":gpu.config.width,"height":gpu.config.height,"requested_mode":self.options.quality.name(),
+                    "actual_dpi_percent":gpu.window.scale_factor()*100.0,"adapter":adapter_json(&gpu.adapter),
+                    "native_dpi":measured_dpi,"dpi_awareness":"PerMonitorAware",
+                    "drive_input":self.options.drive_input,"sample_windows":self.options.windows,"warmup_seconds":self.options.warmup,
+                    "latency_definition":"CPU SendInput call to matching received winit event; event dispatch to frame submission/present call; not photon latency"}),
+                );
+                self.focused = gpu.window.has_focus();
+                if self.focused {
+                    self.warmup_start = Some(Instant::now());
+                }
                 gpu.window.request_redraw();
                 self.gpu = Some(gpu);
             }
-            Err(error) => {
-                eprintln!("Spike D: {error}");
-                self.failed = true;
-                event_loop.exit();
-            }
+            Err(error) => self.fail(event_loop, error),
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.launched.elapsed() >= Duration::from_secs(self.options.timeout) {
+            self.fail(
+                event_loop,
+                "bounded cell timeout before required windows completed",
+            );
+            return;
+        }
+        // Keep timeout observable even when minimized/unfocused. No busy drawing
+        // or input injection while another application has foreground focus.
+        event_loop.set_control_flow(ControlFlow::WaitUntil(
+            Instant::now() + Duration::from_millis(100),
+        ));
+        if self.focused
+            && let Some(gpu) = &self.gpu
+        {
+            gpu.window.request_redraw();
         }
     }
 
@@ -339,137 +451,190 @@ impl ApplicationHandler for Probe {
             return;
         };
         match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::CloseRequested => self.fail(event_loop, "window closed before completion"),
             WindowEvent::Resized(size) => {
-                self.paused = size.width == 0 || size.height == 0;
+                if let Err(reason) = check_dimensions(
+                    &self.options,
+                    size.width,
+                    size.height,
+                    gpu.window.scale_factor(),
+                ) {
+                    self.fail(event_loop, reason);
+                    return;
+                }
                 gpu.resize(size);
-                self.last = None;
-                self.frames.clear();
-                if !self.paused {
-                    gpu.window.request_redraw();
+            }
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let Err(reason) = check_dimensions(
+                    &self.options,
+                    gpu.config.width,
+                    gpu.config.height,
+                    scale_factor,
+                ) {
+                    self.fail(event_loop, reason);
                 }
             }
             WindowEvent::Focused(focused) => {
-                self.paused = !focused;
+                self.focused = focused;
+                if !focused && self.collecting {
+                    self.fail(event_loop, "focus lost during a required sample window");
+                    return;
+                }
                 self.last = None;
-                self.frames.clear();
+                self.samples = Samples::default();
+                self.driver = InputDriver::default();
+                self.warmup_start = focused.then(Instant::now);
                 if focused {
                     gpu.window.request_redraw();
                 }
-            }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                println!(
-                    "actual DPI scale={scale_factor}; rerun this matrix cell after DPI change"
-                );
-                self.last = None;
-                self.frames.clear();
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.pointer = [
                     (position.x / f64::from(gpu.config.width)) as f32,
                     (position.y / f64::from(gpu.config.height)) as f32,
                 ];
-                self.inputs += 1;
-            }
-            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                match event.logical_key {
-                    Key::Named(NamedKey::Escape) => event_loop.exit(),
-                    Key::Character(ref value) => {
-                        match value.as_str() {
-                            "1" => self.quality = Quality::Full,
-                            "2" => self.quality = Quality::Reduced,
-                            "3" => self.quality = Quality::Opaque,
-                            _ => return,
-                        }
-                        self.frames.clear();
-                        self.last = None;
-                        self.inputs += 1;
+                let now = Instant::now();
+                let acknowledgement = self.driver.acknowledge_pointer(position, now);
+                if self.collecting {
+                    self.samples.received(true, now);
+                    if let Some(ms) = acknowledgement {
+                        self.samples.acknowledgements.push(ms);
                     }
-                    _ => {}
                 }
             }
-            WindowEvent::RedrawRequested if !self.paused => {
+            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
+                if event.logical_key == Key::Named(NamedKey::Escape) {
+                    self.fail(event_loop, "Escape interrupted required cell");
+                    return;
+                }
+                let now = Instant::now();
+                let acknowledgement = if event.logical_key == Key::Named(NamedKey::F8) {
+                    self.driver.acknowledge_key(now)
+                } else {
+                    None
+                };
+                if self.collecting {
+                    self.samples.received(false, now);
+                    if let Some(ms) = acknowledgement {
+                        self.samples.acknowledgements.push(ms);
+                    }
+                }
+            }
+            WindowEvent::RedrawRequested if self.focused => {
+                if let Err(reason) = native_dpi(&gpu.window) {
+                    self.fail(event_loop, reason);
+                    return;
+                }
+                if let Err(reason) = check_dimensions(
+                    &self.options,
+                    gpu.window.inner_size().width,
+                    gpu.window.inner_size().height,
+                    gpu.window.scale_factor(),
+                ) {
+                    self.fail(event_loop, reason);
+                    return;
+                }
+                let now = Instant::now();
+                if !self.collecting
+                    && self.warmup_start.is_some_and(|start| {
+                        now.duration_since(start) >= Duration::from_secs(self.options.warmup)
+                    })
+                {
+                    self.collecting = true;
+                    self.samples = Samples::default();
+                    self.last = None;
+                    self.driver = InputDriver::default();
+                }
+                if self.options.drive_input
+                    && let Err(reason) = self.driver.pump(&gpu.window, now)
+                {
+                    self.fail(event_loop, reason);
+                    return;
+                }
                 match gpu.draw(
-                    self.start.elapsed().as_secs_f32(),
+                    self.launched.elapsed().as_secs_f32(),
                     self.quality,
                     self.pointer,
                 ) {
                     Ok(true) => {
                         let now = Instant::now();
-                        if let Some(last) = self.last {
-                            self.frames
-                                .push(now.duration_since(last).as_secs_f64() * 1000.0);
-                        }
-                        self.last = Some(now);
-                        if self.frames.len() >= 300 {
-                            let average =
-                                self.frames.iter().sum::<f64>() / self.frames.len() as f64;
-                            self.frames.sort_by(f64::total_cmp);
-                            let p95 = self.frames[self.frames.len() * 95 / 100];
-                            let next = self.quality.degrade(average);
-                            println!(
-                                "physical={}x{} DPI={} mode={:?} frames={} interval_avg_ms={average:.3} interval_p95_ms={p95:.3} input_events={} next={next:?}",
-                                gpu.config.width,
-                                gpu.config.height,
-                                gpu.window.scale_factor(),
-                                self.quality,
-                                self.frames.len(),
-                                self.inputs
-                            );
-                            self.quality = next;
-                            self.frames.clear();
+                        if self.collecting {
+                            self.samples.presented(now);
+                            if let Some(last) = self.last {
+                                self.samples
+                                    .intervals
+                                    .push(now.duration_since(last).as_secs_f64() * 1000.0);
+                            }
+                            self.last = Some(now);
+                            if self.samples.intervals.len() == 300 {
+                                self.sample(event_loop);
+                            }
                         }
                     }
                     Ok(false) => {
-                        self.last = None;
+                        self.fail(
+                            event_loop,
+                            "surface acquisition failed; uninterrupted sample cannot be counted",
+                        );
+                        return;
                     }
                     Err(error) => {
-                        eprintln!("Spike D: {error}");
-                        self.failed = true;
-                        event_loop.exit();
+                        self.fail(event_loop, error);
                         return;
                     }
                 }
-                gpu.window.request_redraw();
+                if !self.completed {
+                    self.gpu.as_ref().unwrap().window.request_redraw();
+                }
             }
             _ => {}
         }
     }
 }
 
-fn main() -> Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 4 {
-        return Err("usage: spike-d width height full|reduced|opaque (set actual Windows display DPI separately)".into());
-    }
-    let width: u32 = args[1].parse()?;
-    let height: u32 = args[2].parse()?;
-    if !matches!((width, height), (960, 640) | (1440, 900) | (1920, 1080)) {
-        return Err("unsupported spike matrix resolution".into());
-    }
-    let quality = match args[3].as_str() {
-        "full" => Quality::Full,
-        "reduced" => Quality::Reduced,
-        "opaque" => Quality::Opaque,
-        _ => return Err("unsupported effect mode".into()),
+fn run() -> Result<()> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let Some(options) = Options::parse(&args)? else {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let adapters = instance.enumerate_adapters(wgpu::Backends::DX12 | wgpu::Backends::VULKAN);
+        emit(
+            "adapter_inventory",
+            json!({"adapters":adapters.iter().map(|adapter|adapter_json(&adapter.get_info())).collect::<Vec<_>>()}),
+        );
+        return Ok(());
     };
+    if !cfg!(windows) {
+        return Err("physical matrix execution requires Windows; inventory and unit tests are available here".into());
+    }
     let event_loop = EventLoop::new()?;
-    event_loop.set_control_flow(ControlFlow::Wait);
     let mut probe = Probe {
-        size: PhysicalSize::new(width, height),
+        quality: options.quality,
+        options,
         gpu: None,
-        quality,
-        start: Instant::now(),
+        launched: Instant::now(),
+        warmup_start: None,
         last: None,
-        frames: Vec::new(),
+        samples: Samples::default(),
+        driver: InputDriver::default(),
         pointer: [0.5, 0.5],
-        inputs: 0,
-        paused: false,
+        focused: false,
+        collecting: false,
+        windows: 0,
         failed: false,
+        completed: false,
     };
     event_loop.run_app(&mut probe)?;
     if probe.failed {
-        return Err("GPU spike did not run successfully".into());
+        return Err("GPU cell failed; inspect prior failure record".into());
+    }
+    if !probe.completed {
+        return Err("event loop exited without completed evidence".into());
     }
     Ok(())
+}
+fn main() {
+    if let Err(error) = run() {
+        emit("failure", json!({"reason":error.to_string()}));
+        std::process::exit(1);
+    }
 }
