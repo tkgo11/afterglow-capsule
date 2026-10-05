@@ -28,7 +28,7 @@ if ($Kind -eq "c") {
     }
 } else {
     Copy-Item spikes/target/release/afterglow-spike-d.exe "$EvidenceDirectory/SpikeD-Glass.exe"
-    foreach ($Name in @("collect_matrix.ps1", "run_all_gpu_validation.ps1", "collector_common.ps1", "test_collectors.ps1")) { Copy-Item "spikes/glass/$Name" $EvidenceDirectory }
+    foreach ($Name in @("collect_matrix.ps1", "run_all_gpu_validation.ps1", "review_gpu_evidence.ps1", "collector_common.ps1", "test_collectors.ps1")) { Copy-Item "spikes/glass/$Name" $EvidenceDirectory }
     @{
         format_name = "afterglow-spike-d-evidence"; format_version = 2; minimum_reader_version = 2;
         exe_sha256 = (Get-FileHash -Algorithm SHA256 "$EvidenceDirectory/SpikeD-Glass.exe").Hash;

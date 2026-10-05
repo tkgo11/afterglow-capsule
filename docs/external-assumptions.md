@@ -3,7 +3,7 @@
 > This file contains **time-sensitive external facts**.  
 > Revalidate it before every security-sensitive release.
 
-**Last reviewed:** 2026-10-05
+**Last reviewed:** 2026-10-06
 
 Permanent architecture belongs in [SPEC.md](../SPEC.md). This file exists so current network parameters, endpoints, library status, and service behavior are not mistaken for eternal invariants.
 
@@ -246,3 +246,36 @@ Before a security-sensitive release:
 - [ ] Windows signing/tooling behavior retested
 - [ ] SmartScreen documentation assumptions reviewed
 - [ ] this file's review date updated
+
+## Phase 2 Windows evidence collection assumptions
+
+Reviewed 2026-10-06. `GetDpiForWindow` returns effective DPI according to window
+awareness; the probe additionally requires per-monitor awareness and native
+96/144/192 DPI for 100/150/200%. Awareness APIs do not change display scaling.
+Microsoft documents `SPI_SETLOGICALDPIOVERRIDE` as **"Do not use."** No supported
+isolated per-session global scale setter was established. The collector retains
+three normal Display Settings changes and rejects mismatched DPI in every cell.
+
+`SHGetFileInfoW` with an actual executable path and `SHGFI_ICON` returns its actual
+Shell-selected HICON. Saving that HICON as PNG provides reviewable Shell icon
+evidence; it is not an Explorer screenshot or an automatic human visual PASS.
+
+An already enabled supported Windows Sandbox can provide a fresh actual local
+Windows client VM. Its inside-guest collector must still pass cleanliness checks
+and provenance checks; merely launching Sandbox establishes no PASS. Hosted
+Windows Server developer runners remain disqualified. CI saves read-only
+`cloud-windows-feasibility.json`; no configured cloud credentials or clean client
+VM infrastructure is assumed.
+
+References:
+
+- https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-getdpiforwindow
+- https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-systemparametersinfow
+- https://github.com/MicrosoftDocs/sdk-api/blob/docs/sdk-api-src/content/winuser/nf-winuser-systemparametersinfow.md
+- https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext
+- https://learn.microsoft.com/windows/win32/api/shellapi/nf-shellapi-shgetfileinfow
+- https://learn.microsoft.com/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-overview
+- https://learn.microsoft.com/windows/security/application-security/application-isolation/windows-sandbox/windows-sandbox-configure-using-wsb-file
+
+The [version 2 collection decision](decisions/0003-phase2-evidence.md) records
+obsolete artifacts, previous reported failures and the strict remaining gate.

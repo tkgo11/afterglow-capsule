@@ -31,3 +31,8 @@ passed. That includes Linux/Windows core/frontend checks, fuzz harness compilati
 historical and live timelock, NTS/provenance, native PE automation and Windows GPU
 probe compilation. Hosted success still closes neither C's recipient/shell
 checks nor D's physical hardware matrix.
+
+Version 2 evidence tooling and immutable retry review are documented in
+[0003 — Phase 2 evidence](0003-phase2-evidence.md). Its automated validator
+requires independently reviewed provenance and genuine complete physical evidence.
+Old version 1 bundles remain historical evidence only.

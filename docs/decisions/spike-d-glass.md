@@ -1,7 +1,7 @@
 # Spike D — wgpu Temporal Glass
 
 Status: **BLOCKED — shader/policy tests and cross-check only**.
-Review date: 2026-10-05. Canonical acceptance: SPEC.md §24 and §148.
+Review date: 2026-10-06. Canonical acceptance: SPEC.md §24 and §148.
 
 ## Evaluated stack and environment
 
@@ -64,3 +64,14 @@ successfully; no window was run in hosted CI. The [manual protocol](../../spikes
 collector cover nine cells at one actual DPI/GPU combination, repeated across
 all six combinations. Collection leaves human performance, responsiveness and
 foreground observations pending. Artifact compilation closes no hardware cell.
+
+## Version 2 evidence tooling
+
+The original version 1 bundle above is obsolete for new acceptance evidence;
+its historical results remain available for audit. See the
+[collection/validation decision](0003-phase2-evidence.md) for explicit adapter
+selection, real input receipts, static CRT builds, native Shell extraction,
+clean-recipient inventory, strict trusted provenance and preserved retries.
+The [new one-command protocol](../../spikes/manual/README.md) supersedes the
+old collector instructions. Physical C/D acceptance remains PENDING; automated
+regression fixtures and hosted success do not count as physical evidence.

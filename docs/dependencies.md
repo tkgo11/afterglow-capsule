@@ -78,3 +78,18 @@ No dangerous TLS configuration, TLS key logging, fabricated beacon or developmen
 release path is enabled in production. No production cryptographic or platform
 adoption follows from these candidate records. See the four
 [spike decisions](decisions/README.md) for the outstanding acceptance evidence.
+
+## Phase 2 evidence and fuzz development tooling
+
+The isolated evidence validator reuses pinned serde/serde_json and sha2 0.10.9
+(MIT OR Apache-2.0, https://github.com/RustCrypto/hashes) for duplicate-rejecting
+bounded JSON and artifact SHA-256 consistency. sha2 was already locked in the
+spike dependency graph. No production crypto dependency is adopted. Windows
+Shell/SendInput/DPI collection reuses windows-sys 0.61.2; the native helper uses
+stock Windows .NET Framework/System.Drawing, not a distributed third-party DLL.
+
+Instrumented development-only parser smoke uses `cargo-fuzz 0.13.2`
+(MIT OR Apache-2.0, https://github.com/rust-fuzz/cargo-fuzz) with
+`nightly-2025-09-15` (Rust compiler 1.92 nightly). Exact install uses `--locked`;
+production remains Rust 1.90.0. These development tools were executed and source/
+license provenance reviewed, not comprehensively security audited.

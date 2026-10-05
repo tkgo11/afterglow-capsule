@@ -1,7 +1,7 @@
 # Spike C — PE resources and Authenticode
 
 Status: **BLOCKED — native replacement/signing/readback passed; clean VM/shell outstanding**.
-Review date: 2026-10-05.
+Review date: 2026-10-06.
 Canonical acceptance: SPEC.md §23 and §148.
 
 ## Evaluated stack and environment
@@ -87,3 +87,14 @@ no development tools/sidecars before closing the gate. The
 public test copy and built-in Windows collector. **All-steps-pass acceptance
 has not been met.** The negative mutation is limited to disposable spike artifacts;
 it cannot justify mutation of a signed final Viewer.
+
+## Version 2 evidence tooling
+
+The original version 1 bundle above is obsolete for new acceptance evidence;
+its historical results remain available for audit. See the
+[collection/validation decision](0003-phase2-evidence.md) for explicit adapter
+selection, real input receipts, static CRT builds, native Shell extraction,
+clean-recipient inventory, strict trusted provenance and preserved retries.
+The [new one-command protocol](../../spikes/manual/README.md) supersedes the
+old collector instructions. Physical C/D acceptance remains PENDING; automated
+regression fixtures and hosted success do not count as physical evidence.

@@ -1,40 +1,38 @@
-# Spike D: windowed Temporal Glass candidate
+# Spike D: explicit-adapter Temporal Glass probe
 
-This isolated winit/wgpu experiment renders a synthetic atmosphere to a texture,
-samples it through an experimental glass pipeline, and draws stable opaque
-foreground bars and pointer feedback. It does not render project content, decode
-assets, implement a release ceremony or act as the production Viewer. Shader
-fidelity, readable text and real archive UI remain future production work.
+Isolated winit/wgpu public synthetic scene; no production Viewer, project content,
+release engine or debug unlock exists here. It renders atmosphere, sampled glass,
+opaque foreground bars and pointer feedback. This tests platform feasibility;
+archive readability and the full design system remain production phase work.
 
 ```sh
 cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-spike-d
-cargo run --manifest-path spikes/Cargo.toml --locked --release -p afterglow-spike-d -- 1440 900 full
+cargo run --manifest-path spikes/Cargo.toml --locked --release -p afterglow-spike-d -- --list-adapters
 ```
 
-Arguments are physical client width, height and `full`, `reduced` or `opaque`.
-Set actual Windows display scaling separately. The log records actual surface
-size, DPI scale, adapter/type/backend/driver, effect mode, average and p95 frame
-intervals over 300 frames, and input event counts. A software/unknown adapter is
-rejected as reference hardware. These are application presentation cadence
-measurements, not GPU timestamp measurements or measured input latency.
+Windows example for one bounded physical cell:
 
-Move the pointer and use `1`, `2`, `3` for effect modes, Escape to close. Resizing,
-focus loss and mode changes reset the sample window; inactive/zero-sized windows
-pause drawing. Slow averages automatically reduce effects or use a static opaque
-surface. The explicit opaque preference survives automatic quality decisions.
-Feedback and foreground remain visible in all modes. Manual responsiveness and
-readability observations must accompany performance measurements.
+```powershell
+.\SpikeD-Glass.exe 1440 900 full --gpu integrated --expected-dpi 100 --drive-input
+```
 
-Required matrix: each of **960×640, 1440×900, 1920×1080**, at **100%, 150%, 200%**
-actual DPI, on **integrated and discrete GPUs**, with **full**, **Reduced
-Transparency (`opaque`)** and **low-quality (`reduced`)** effects. All 54 cells
-are pending. Warm up each cell, collect at least three 300-frame windows while
-interacting, inspect automatic degradation, and record hardware/OS/driver/power/
-refresh-rate details. This measurement protocol is a spike implementation choice;
-SPEC's 60 FPS-or-automatic-degradation and responsive-input requirements remain.
+`--gpu integrated|discrete` requires the reported IntegratedGpu/DiscreteGpu class;
+there is no fallback. Optional `--adapter-name <substring>` resolves ambiguity.
+`--expected-dpi 100|150|200` must match native per-monitor window DPI. Defaults are
+three 300-interval sample windows, three-second warmup and 120-second timeout.
+The JSONL v2 protocol includes actual adapter name/vendor/device/backend/driver/
+info/type, native DPI, dimensions, mean/p95 cadence and input/acknowledgement/
+event-to-present-return timings. Unknown/software adapters cannot count. Focus
+loss, resize, wrong DPI, missing received input or timeout fail a recorded cell.
 
-The WGSL validator and two quality policy tests passed on Linux and Windows, and
-Windows x64 APIs cross-check. No physical GPU measurement or windowed execution
-was possible in this workspace. The workflow builds a downloadable native probe;
-the [manual protocol](../manual/README.md) and collector preserve all 54 pending
-cells. See the [evidence record](../../docs/decisions/spike-d-glass.md).
+Standard Windows SendInput drives pointer/F8 events while the own window is
+foreground; counters come from received winit events. Human responsiveness and
+foreground observations are separately required. Slower/jittery cadence
+conservatively degrades effects using max(mean,p95); explicit opaque preference
+remains opaque. Cadence and CPU timings are not GPU timestamps or photon latency.
+
+Use [the complete manual protocol](../manual/README.md): one command collects the
+54-cell matrix and preserves all attempts. Native hardware/visual evidence remains
+pending until actually returned and reviewed. See the
+[spike decision](../../docs/decisions/spike-d-glass.md) and
+[validator](../evidence/README.md); compilation/unit tests close no physical cell.
