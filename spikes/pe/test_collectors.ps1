@@ -34,6 +34,15 @@ $Pe[69]=0
 $Rejected=$false
 try { Get-SpikeCArchitecture $Pe | Out-Null } catch { $Rejected=$true }
 Assert $Rejected 'Wrong architecture incorrectly accepted'
+# Pure WSB configuration check; does not claim a Sandbox was launched.
+[xml]$Configuration = New-SpikeCSandboxConfiguration 'C:\fixture & input' 'C:\fixture output'
+Assert ($Configuration.Configuration.MappedFolders.MappedFolder[0].HostFolder -eq 'C:\fixture & input') 'WSB host path XML escaping failed'
+Assert ($Configuration.Configuration.MappedFolders.MappedFolder[0].ReadOnly -eq 'true') 'WSB input mapping is not read-only'
+Assert ($Configuration.Configuration.MappedFolders.MappedFolder[1].ReadOnly -eq 'false') 'WSB result mapping is not writable'
+$Logon = $Configuration.Configuration.LogonCommand.Command
+Assert ($Logon -match '-ExecutionPolicy RemoteSigned') 'Guest scoped supported execution policy is missing'
+Assert ($Logon -notmatch 'Bypass|Unrestricted') 'Forbidden broad execution policy introduced'
+Assert ($Logon -match 'collector-console.log') 'Guest startup errors will not be preserved'
 Write-Output 'Spike C pure collector checks passed; these fixtures are not clean-VM evidence.'
 
 if ($ArtifactDirectory) {

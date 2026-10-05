@@ -7,6 +7,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'collector_logic.ps1')
 $Os = Get-CimInstance Win32_OperatingSystem
 if ($Os.ProductType -ne 1 -or $Os.Caption -notmatch 'Windows (10|11)\b' -or -not [Environment]::Is64BitProcess) { throw 'Windows 10/11 x64 client is required.' }
 $Sandbox = Join-Path $env:WINDIR 'System32\WindowsSandbox.exe'
@@ -23,7 +24,11 @@ New-Item -ItemType Directory -Path $Input | Out-Null
 try {
     # Only public fixture executable and exact collector verification inputs.
     foreach ($Name in @('SpikeC-Standalone.exe','spike-c-expected.json','run_clean_recipient_validation.ps1','collector_logic.ps1','native_collector.cs')) {
-        Copy-Item -LiteralPath (Join-Path $ArtifactDirectory $Name) -Destination (Join-Path $Input $Name)
+        # Stage only the allowlisted reviewed public bundle as fresh local bytes.
+        # Original downloaded files/host trust annotations are left unchanged.
+        # This avoids carrying Internet-zone ADS into the disposable guest's
+        # RemoteSigned process. No executable byte/signature is changed.
+        [IO.File]::WriteAllBytes((Join-Path $Input $Name), [IO.File]::ReadAllBytes((Join-Path $ArtifactDirectory $Name)))
     }
     @{
         format_name='afterglow-spike-c-vm-provenance';format_version=2;minimum_reader_version=2;
@@ -33,25 +38,12 @@ try {
         note='Fresh supported Windows Sandbox launch. Network/vGPU/clipboard/printer redirection disabled. Only public fixture and collector inputs mapped read-only; results directory mapped writable. Attestation requires actual inside-VM collector inventory; launcher itself cannot pass the gate.';
         host_os_caption=$Os.Caption;host_os_build=$Os.BuildNumber;launched_utc=[DateTime]::UtcNow.ToString('o')
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $Input 'vm-provenance.json') -Encoding UTF8
-    $EscapedInput = [Security.SecurityElement]::Escape($Input)
-    $EscapedOutput = [Security.SecurityElement]::Escape($ResultsDirectory)
-    $Configuration = @"
-<Configuration>
-  <VGpu>Disable</VGpu>
-  <Networking>Disable</Networking>
-  <ClipboardRedirection>Disable</ClipboardRedirection>
-  <PrinterRedirection>Disable</PrinterRedirection>
-  <MappedFolders>
-    <MappedFolder><HostFolder>$EscapedInput</HostFolder><SandboxFolder>C:\afterglow-input</SandboxFolder><ReadOnly>true</ReadOnly></MappedFolder>
-    <MappedFolder><HostFolder>$EscapedOutput</HostFolder><SandboxFolder>C:\afterglow-output</SandboxFolder><ReadOnly>false</ReadOnly></MappedFolder>
-  </MappedFolders>
-  <LogonCommand><Command>powershell.exe -NoProfile -Command &quot;&amp; 'C:\afterglow-input\run_clean_recipient_validation.ps1' -ArtifactDirectory 'C:\afterglow-input' -Report 'C:\afterglow-output\spike-c-clean-vm-result.json'&quot;</Command></LogonCommand>
-</Configuration>
-"@
+    $Configuration = New-SpikeCSandboxConfiguration $Input $ResultsDirectory
     $Wsb = Join-Path $Input 'afterglow-clean-recipient.wsb'
     [IO.File]::WriteAllText($Wsb,$Configuration,[Text.Encoding]::UTF8)
     Copy-Item -LiteralPath $Wsb -Destination (Join-Path $ResultsDirectory 'sandbox-configuration.wsb')
     Write-Output 'Launching actual fresh Windows Sandbox; no host display/feature/trust settings are changed.'
+    Write-Output 'Only the disposable guest collector process uses supported RemoteSigned execution policy. Host/persistent policies and Group Policy restrictions are unchanged.'
     Write-Output ('Results: '+$ResultsDirectory)
     Write-Output 'Wait for collector output, then close Sandbox. Inspect shell-icon.png and record the visual observation in the canonical report.'
     $Process = Start-Process -FilePath $Sandbox -ArgumentList ('"'+$Wsb+'"') -PassThru

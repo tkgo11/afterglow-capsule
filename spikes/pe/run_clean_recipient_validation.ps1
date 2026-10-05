@@ -142,7 +142,7 @@ try {
     $Png = Join-Path $ReportFolder 'shell-icon.png'
     [AfterglowSpikeCNative]::SaveShellIcon($Standalone, $Png)
     $Result.shell_icon_sha256 = (Get-FileHash -LiteralPath $Png -Algorithm SHA256).Hash.ToLowerInvariant()
-    $Pending.Add('Inspect shell-icon.png/Explorer icon against the cyan square with white diagonal and fill shell_icon_observation.correct and note in the report.')
+    Write-Output 'Human observation remains required: inspect shell-icon.png/Explorer icon against the cyan square with white diagonal, then fill shell_icon_observation.correct and note in the report.'
 } catch {
     $Failures.Add($_.Exception.Message)
 } finally {

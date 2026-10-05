@@ -54,3 +54,23 @@ function Get-SpikeCArchitecture([byte[]]$Bytes) {
     if ([BitConverter]::ToUInt16($Bytes, [int]$Offset + 4) -ne 0x8664 -or [BitConverter]::ToUInt16($Bytes, [int]$Offset + 24) -ne 0x20b) { throw 'Expected x86_64 PE32+ architecture.' }
     return 'x86_64'
 }
+
+function New-SpikeCSandboxConfiguration([string]$InputDirectory,[string]$OutputDirectory) {
+    $EscapedInput = [Security.SecurityElement]::Escape($InputDirectory)
+    $EscapedOutput = [Security.SecurityElement]::Escape($OutputDirectory)
+    # RemoteSigned applies to this disposable guest process only. It is a supported
+    # scoped policy, not Bypass/Unrestricted; Group Policy restrictions remain effective.
+    return @"
+<Configuration>
+  <VGpu>Disable</VGpu>
+  <Networking>Disable</Networking>
+  <ClipboardRedirection>Disable</ClipboardRedirection>
+  <PrinterRedirection>Disable</PrinterRedirection>
+  <MappedFolders>
+    <MappedFolder><HostFolder>$EscapedInput</HostFolder><SandboxFolder>C:\afterglow-input</SandboxFolder><ReadOnly>true</ReadOnly></MappedFolder>
+    <MappedFolder><HostFolder>$EscapedOutput</HostFolder><SandboxFolder>C:\afterglow-output</SandboxFolder><ReadOnly>false</ReadOnly></MappedFolder>
+  </MappedFolders>
+  <LogonCommand><Command>powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -Command &quot;&amp; 'C:\afterglow-input\run_clean_recipient_validation.ps1' -ArtifactDirectory 'C:\afterglow-input' -Report 'C:\afterglow-output\spike-c-clean-vm-result.json' *&gt; 'C:\afterglow-output\collector-console.log'&quot;</Command></LogonCommand>
+</Configuration>
+"@
+}
