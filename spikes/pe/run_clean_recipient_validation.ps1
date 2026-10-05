@@ -7,7 +7,6 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-. (Join-Path $PSScriptRoot 'collector_logic.ps1')
 $Failures = New-Object 'Collections.Generic.List[string]'
 $Pending = New-Object 'Collections.Generic.List[string]'
 $ReportPath = [IO.Path]::GetFullPath($Report)
@@ -34,6 +33,7 @@ $Result = [ordered]@{
 }
 $Scratch = $null
 try {
+    . (Join-Path $PSScriptRoot 'collector_logic.ps1')
     $ArtifactDirectory = [IO.Path]::GetFullPath($ArtifactDirectory)
     # A supplied provenance file is evidence, never an exemption from actual inventory.
     $VmFile = Join-Path $ArtifactDirectory 'vm-provenance.json'
