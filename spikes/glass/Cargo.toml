@@ -1,0 +1,14 @@
+[package]
+name = "afterglow-spike-d"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[dependencies]
+wgpu = { version = "=27.0.1", default-features = false, features = ["std", "parking_lot", "dx12", "vulkan", "wgsl"] }
+winit = { version = "=0.30.13", default-features = false, features = ["rwh_06", "x11"] }
+pollster = "=0.4.0"
+
+[dev-dependencies]
+naga = { version = "=27.0.3", features = ["wgsl-in"] }
