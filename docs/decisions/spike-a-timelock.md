@@ -1,6 +1,7 @@
 # Spike A — timelock interoperability
 
-Status: **BLOCKED — partial Linux evidence only**. Review date: 2026-10-05.
+Status: **PASSED — required historical, future-round and Windows evidence**.
+Review date: 2026-10-05.
 Canonical acceptance: SPEC.md §21 and §148. No production dependency is adopted.
 
 ## Evaluated stack and environment
@@ -29,7 +30,8 @@ python spikes/timelock/check_historical.py --rust spikes/target/debug/afterglow-
 python spikes/timelock/test_live_inputs.py
 ```
 
-Nine interoperability/security tests and two pure live-input tests passed. Go
+Nine interoperability/security tests and five pure live-input/transport-failure
+tests passed locally. The historical suite also passed on Windows x64. Go
 build, vet, module verification and package checks passed with the disclosed local
 workspace. The published Go ciphertext decrypts to its known public plaintext.
 Fresh historical-round Go ciphertext decrypts in Rust, and fresh historical-round
@@ -46,21 +48,45 @@ The ready [live runner](../../spikes/timelock/live_future.py) checks pinned meta
 verifies latest, encrypts a future round, requires pre-round failure, then verifies
 and decrypts the exact real target-round beacon in both directions.
 
+The native Windows live test passed on 2026-10-05 for target round `32796387`:
+both implementations encrypted before publication, pre-round decryption failed,
+the exact target-round beacon passed pinned-chain BLS verification, and Go → Rust
+and Rust → Go decryption matched the public synthetic payload. Windows Server 2025
+10.0.26100 x64 used Rust 1.90.0, Go 1.27.1 and Python 3.12.10. The normal Go module
+proxy/checksum path succeeded there; no local workspace replacement was used.
+
+Evidence: [live Windows step](https://github.com/tkgo11/afterglow-capsule/actions/runs/37289889821/job/111697557214)
+and [Windows historical/failure suite](https://github.com/tkgo11/afterglow-capsule/actions/runs/37288622769/job/111693472911).
+The first linked job's overall conclusion is failure because the separate NTS
+documentation check exposed a stale endpoint; its future-round timelock step is
+success. This record claims that observed step and the required timelock tests,
+not success of that entire job.
+
+The subsequent [complete live/provenance job](https://github.com/tkgo11/afterglow-capsule/actions/runs/37290256379/job/111698735744)
+also passed for target round `32796465`, including both future-round directions
+and the independent NTS/provenance steps. This supplies a fully successful job
+in addition to the earlier timelock step evidence.
+
 ## Acceptance matrix
 
 | SPEC §21 requirement                    | Evidence                                                        |
 | --------------------------------------- | --------------------------------------------------------------- |
-| Official Go future-round encryption     | Local generation passed; live run pending                       |
-| Rust decryption after that future round | Pending real target beacon                                      |
-| Rust encryption → Go decryption         | Historical differential test passed; live future pending        |
-| Pre-round rejection                     | Historical-beacon rejection passed; live target absence pending |
+| Official Go future-round encryption     | Passed live on Windows                                          |
+| Rust decryption after that future round | Passed after exact verified target beacon                       |
+| Rust encryption → Go decryption         | Passed historical and live future-round tests                   |
+| Pre-round rejection                     | Passed before actual publication in both implementations        |
 | Modified ciphertext rejection           | Passed in Rust and Go                                           |
 | Wrong-chain beacon rejection            | Passed with same-round foreign signature                        |
 | Invalid signature rejection             | Passed                                                          |
-| Windows x64 CI                          | Workflow prepared; no observed result yet                       |
+| Windows x64 CI                          | Required historical/negative and live future-round steps passed |
 | Dependency versions                     | Recorded and locked                                             |
 
-The workspace's public relay request returned HTTP 403 under enforced egress
-policy. No clock substitution or unsigned/fabricated beacon is an acceptable
-replacement. Windows CI and the real future-round run are mandatory outstanding
-evidence. **All-tests-pass acceptance has not been met; Phase 2 remains blocked.**
+The Linux workspace's relay request is policy-blocked, so Windows CI supplied the
+mandatory live evidence. The first run exposed HTTP 425 for unpublished rounds;
+a subsequent run encountered a transient HTTP 500 while polling. Both are recorded
+in centralized external assumptions. Bounded transport retries do not interpret
+server failures as release evidence, and no HTTP status or clock grants release.
+
+**Spike A's required tests pass.** This validates the evaluated candidate for
+future integration; it is not a third-party audit or production implementation.
+Phase 2 remains blocked until the other mandatory spikes meet their acceptance.

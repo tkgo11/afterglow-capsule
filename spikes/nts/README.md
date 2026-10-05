@@ -14,13 +14,14 @@ python spikes/nts/review_operator_docs.py
 Four local tests passed: invalid zero timeout, prohibited verification disabling,
 an actual stalled loopback TLS peer, and an actual untrusted loopback certificate.
 Certificates are ephemeral test material kept in memory; they are never installed
-as trust roots. These tests establish failure behavior for the candidate, not
-successful live NTS operation or Windows support.
+as trust roots. The same four tests passed on Windows; successful native live
+observations and operator provenance are separately recorded below.
 
 Live inputs come from the candidate block in `docs/external-assumptions.md`.
 Windows CI retrieved official Netnod documentation and the candidate was updated
-to its documented hostname; live authentication at that hostname is still pending.
-Two different hostnames alone do not establish independent operators. The workspace has no
+to its documented hostname. Both documented independent operators then passed
+certificate-verified NTS-KE/authenticated NTP and matching official provenance
+review on Windows. Two different hostnames alone do not establish independence. The workspace has no
 external TCP/UDP grants for NTS. Run the live experiment on native Windows with
 permitted NTS-KE TCP and authenticated NTP UDP access, preserve both provider
 results, and record OS/library versions and operator provenance. See the

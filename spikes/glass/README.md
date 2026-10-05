@@ -33,6 +33,8 @@ interacting, inspect automatic degradation, and record hardware/OS/driver/power/
 refresh-rate details. This measurement protocol is a spike implementation choice;
 SPEC's 60 FPS-or-automatic-degradation and responsive-input requirements remain.
 
-The WGSL validator and two quality policy tests passed, and Windows x64 APIs
-cross-check. No physical GPU measurement or windowed execution was possible in
-this workspace. See the [evidence record](../../docs/decisions/spike-d-glass.md).
+The WGSL validator and two quality policy tests passed on Linux and Windows, and
+Windows x64 APIs cross-check. No physical GPU measurement or windowed execution
+was possible in this workspace. The workflow builds a downloadable native probe;
+the [manual protocol](../manual/README.md) and collector preserve all 54 pending
+cells. See the [evidence record](../../docs/decisions/spike-d-glass.md).

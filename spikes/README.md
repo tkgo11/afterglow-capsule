@@ -22,6 +22,8 @@ Windows evidence on pushes, pull requests and manual dispatch. It includes real
 network tests and will fail if external services cannot be reached or verified.
 It does not provision reference GPUs or substitute a hosted runner for a clean
 recipient VM. Results must be reviewed against every SPEC acceptance criterion.
+The downloadable Windows spike bundles and [manual validation protocol](manual/README.md)
+support the outstanding clean VM/shell and physical GPU checks.
 
 | Experiment               | Commands and limitations       | Gate evidence                                     |
 | ------------------------ | ------------------------------ | ------------------------------------------------- |

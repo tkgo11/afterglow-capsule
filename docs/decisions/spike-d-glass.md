@@ -26,6 +26,12 @@ bounded cadence sample windows, resize/focus handling and automatic fallback.
 The scene does not bind its own render target as an input. Animation uses elapsed
 time. No project content or release engine is present.
 
+The same three tests and the full isolated-workspace lint check also passed on
+Windows Server 2025 x64 with Rust 1.90.0:
+[Windows CI evidence](https://github.com/tkgo11/afterglow-capsule/actions/runs/37288622769/job/111693472911).
+These unit/validation results execute without creating a GPU window and do not
+close any physical reference-hardware matrix cell.
+
 Shader/policy tests do not establish real GPU performance, visual fidelity,
 readable archive text, measured input latency or Windows window behavior. This
 workspace exposes no physical GPU device or windowed reference Windows hardware.
@@ -48,3 +54,13 @@ probe README; preserve actual adapter/driver/OS/DPI/size, frame interval average
 p95, mode transitions and interaction observations. The log measures application
 presentation cadence, not GPU timestamps. Do not fabricate FPS or count a software
 container render as reference hardware. **SPEC acceptance remains unresolved.**
+
+The workflow builds a native Windows x64 release probe as the `phase-2-gpu-probe`
+artifact. The [published bundle](https://github.com/tkgo11/afterglow-capsule/actions/runs/37292698552/artifacts/11337491857)
+was built at `f797ac893c67bfe6e2f36fdc647b3ddd7be9228d`; its downloaded ZIP and
+x64 EXE SHA-256 were verified. It contains only the probe, expected hash,
+collector and protocol, and expires 2026-10-19. PowerShell 5.1 parsed the collector
+successfully; no window was run in hosted CI. The [manual protocol](../../spikes/manual/README.md) and PowerShell
+collector cover nine cells at one actual DPI/GPU combination, repeated across
+all six combinations. Collection leaves human performance, responsiveness and
+foreground observations pending. Artifact compilation closes no hardware cell.

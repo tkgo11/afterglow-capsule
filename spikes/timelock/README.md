@@ -27,8 +27,9 @@ monotonic clock bounds the wait and does not authorize release. Endpoint or pin
 changes require review of external assumptions; the runner never adopts them.
 
 Historical checks and the five pure live-input/transport-failure tests passed locally on Linux.
-The live relay is blocked by this workspace's proxy policy; Windows execution
-must be collected through CI. See the [evidence record](../../docs/decisions/spike-a-timelock.md).
+The live relay is blocked by this workspace's proxy policy. Native Windows CI
+passed the historical/negative suite, real future-round encryption/decryption in
+both directions and pre-round rejection. See the [evidence record](../../docs/decisions/spike-a-timelock.md).
 
 The Go reference is pinned to `v1.2.1-0.20260923175943-3ea7fbb59e85`
 (`3ea7fbb59e85d00b0d9b6b2554e9652d5766811b`). Its normal build uses the public

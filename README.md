@@ -74,9 +74,11 @@ schema/project models, public manifest and object metadata, bounded capsule head
 parsing, and parser fuzz harnesses. The application scaffolds cannot build or open archives.
 
 Isolated Go/Rust timelock, NTS, Windows PE/signing and glass probes live under
-`spikes/`. Historical interoperability and local failure/format/shader tests pass;
-live release, native Windows and reference GPU acceptance evidence is still
-required. Phase 2 remains blocked and production Phases 3–12 have not begun.
+`spikes/`. Required timelock interoperability and independent authenticated NTS
+tests passed on Windows, as did native PE signing/readback/mutation rejection.
+Clean recipient VM, shell icon and physical GPU acceptance remain outstanding.
+Phase 2 remains blocked and production Phases 3–12 have not begun. Downloadable
+spike executables and the [manual protocol](spikes/manual/README.md) support those checks.
 
 See [docs/development.md](docs/development.md) for toolchains and validation commands
 and [docs/decisions/](docs/decisions/README.md) for decisions and mandatory spike status.

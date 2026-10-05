@@ -29,7 +29,8 @@ resources and native version metadata using Windows built-ins. Expected hashes
 are verification inputs, not runtime sidecar dependencies. No admin is needed.
 
 The public test EXE is self-signed with the disposable CI certificate. Windows
-may report `NotTrusted` after that root is removed; the collector records the
+may report `NotTrusted` or `UnknownError` with an untrusted-root message after that
+root is removed; the collector records the
 status and never installs a root. Cryptographic signing, verification and
 post-sign mutation rejection are separately evidenced in the CI SignTool log.
 This does not establish production publisher trust or SmartScreen reputation.

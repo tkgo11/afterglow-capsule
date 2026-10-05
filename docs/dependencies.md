@@ -3,7 +3,7 @@
 Phase 1 selects serialization, identifier and metadata utilities, but no
 security-sensitive crypto/platform production dependency. In particular, no
 AES-GCM, HKDF/SHA-256, Argon2id, timelock/drand, TLS or PE/signing implementation has
-been adopted. All mandatory spikes remain open.
+been adopted. Spikes A/B passed; C/D still block production integration.
 
 Before selecting any such dependency, add its name, exact version, license,
 upstream repository, security status and selection rationale here (SPEC.md §9.2).
@@ -39,33 +39,40 @@ All dependencies below are confined to the excluded `spikes/` workspace or its
 Go wrapper. Production Builder/Viewer dependency closures do not include them.
 Exact registry artifacts and transitive versions are committed in the separate
 Cargo/Go locks. Published crate license/repository metadata and the official Go
-reference source were inspected. **Security status for every entry is unreviewed:
-no audit endorsement or completed advisory assessment is claimed.** Passing the
-listed test subset establishes only that evidence; it does not establish
-maintainability, platform support or overall cryptographic security. Production
+reference source were inspected. **Overall security status remains unreviewed:
+no audit endorsement or comprehensive advisory assessment is claimed.** The NTS
+candidate's maintenance record and the specific Rustls advisory below were reviewed.
+Passing the listed tests establishes that evidence; it does not establish overall
+cryptographic security. Production
 adoption requires the mandatory gate results and further dependency review.
 
-| Candidate      | Exact evaluated version              | License                  | Upstream                                | Selection rationale / evidence limit                                          |
-| -------------- | ------------------------------------ | ------------------------ | --------------------------------------- | ----------------------------------------------------------------------------- |
-| Go toolchain   | 1.27.1                               | BSD-3-Clause             | https://go.dev/                         | Official reference compiler; Linux archive SHA-256 verified                   |
-| drand/tlock    | v1.2.1-0.20260923175943-3ea7fbb59e85 | MIT OR Apache-2.0        | https://github.com/drand/tlock          | Official differential reference; historical Go/Rust tests passed              |
-| drand/drand/v2 | 2.1.2                                | MIT                      | https://github.com/drand/drand          | Reference's pinned dependency; local exact-tag workspace fallback disclosed   |
-| tlock_age      | 0.0.10                               | MIT                      | https://github.com/thibmeu/tlock-rs     | RFC9380 timelock/age candidate; historical tests passed, live/Windows pending |
-| tlock          | 0.0.10                               | MIT                      | https://github.com/thibmeu/tlock-rs     | Candidate transitive timelock implementation; not custom crypto               |
-| age            | 0.11.5                               | MIT OR Apache-2.0        | https://github.com/str4d/rage           | Candidate transitive ciphertext format; not a replacement release gate        |
-| drand_core     | 0.0.19                               | MIT                      | https://github.com/thibmeu/drand-rs     | Pinned-chain/round BLS/randomness checks in isolated wrapper                  |
-| rkik-nts       | 1.4.0                                | MIT                      | https://github.com/aguacero7/rkik-nts   | Toolchain-compatible NTS candidate; local TLS failure tests only              |
-| tokio          | 1.52.3                               | MIT                      | https://github.com/tokio-rs/tokio       | Bounded async network experiments                                             |
-| rustls         | 0.23.45                              | Apache-2.0 OR ISC OR MIT | https://github.com/rustls/rustls        | Candidate TLS verifier/transport; no bypass configured                        |
-| tokio-rustls   | 0.26.6                               | MIT OR Apache-2.0        | https://github.com/rustls/tokio-rustls  | Candidate TLS integration and local test server                               |
-| ring           | 0.17.14                              | Apache-2.0 AND ISC       | https://github.com/briansmith/ring      | Candidate TLS crypto provider; transitive, not an audit endorsement           |
-| aes-siv        | 0.7.0                                | Apache-2.0 OR MIT        | https://github.com/RustCrypto/AEADs     | Candidate NTS AEAD dependency; not the capsule cipher selection               |
-| rcgen          | 0.14.7                               | MIT OR Apache-2.0        | https://github.com/rustls/rcgen         | Test-only ephemeral loopback TLS certificate generation                       |
-| windows-sys    | 0.61.2                               | MIT OR Apache-2.0        | https://github.com/microsoft/windows-rs | Native PE resource reader/injector probe; Windows execution pending           |
-| wgpu           | 27.0.1                               | MIT OR Apache-2.0        | https://github.com/gfx-rs/wgpu          | Toolchain-compatible windowed glass probe; reference hardware pending         |
-| winit          | 0.30.13                              | Apache-2.0               | https://github.com/rust-windowing/winit | Native experiment window/input/DPI; runtime validation pending                |
-| pollster       | 0.4.0                                | MIT OR Apache-2.0        | https://github.com/zesterer/pollster    | Startup-only adapter/device future executor                                   |
-| naga           | 27.0.3                               | MIT OR Apache-2.0        | https://github.com/gfx-rs/wgpu          | Test-only WGSL parse/validation; hardware evidence not inferred               |
+| Candidate      | Exact evaluated version              | License                  | Upstream                                | Selection rationale / evidence limit                                                    |
+| -------------- | ------------------------------------ | ------------------------ | --------------------------------------- | --------------------------------------------------------------------------------------- |
+| Go toolchain   | 1.27.1                               | BSD-3-Clause             | https://go.dev/                         | Official reference compiler; Linux archive SHA-256 verified                             |
+| drand/tlock    | v1.2.1-0.20260923175943-3ea7fbb59e85 | MIT OR Apache-2.0        | https://github.com/drand/tlock          | Official reference; historical and real future-round Go/Rust tests passed on Windows    |
+| drand/drand/v2 | 2.1.2                                | MIT                      | https://github.com/drand/drand          | Reference's pinned dependency; local exact-tag workspace fallback disclosed             |
+| tlock_age      | 0.0.10                               | MIT                      | https://github.com/thibmeu/tlock-rs     | RFC9380 candidate; all required Spike A interoperability/rejection/Windows tests passed |
+| tlock          | 0.0.10                               | MIT                      | https://github.com/thibmeu/tlock-rs     | Candidate transitive timelock implementation; not custom crypto                         |
+| age            | 0.11.5                               | MIT OR Apache-2.0        | https://github.com/str4d/rage           | Candidate transitive ciphertext format; not a replacement release gate                  |
+| drand_core     | 0.0.19                               | MIT                      | https://github.com/thibmeu/drand-rs     | Pinned-chain/round BLS/randomness checks in isolated wrapper                            |
+| rkik-nts       | 1.4.0                                | MIT                      | https://github.com/aguacero7/rkik-nts   | Verified independent documented providers and real failure tests on Windows             |
+| tokio          | 1.52.3                               | MIT                      | https://github.com/tokio-rs/tokio       | Bounded async network experiments                                                       |
+| rustls         | 0.23.45                              | Apache-2.0 OR ISC OR MIT | https://github.com/rustls/rustls        | Candidate TLS verifier/transport; no bypass configured                                  |
+| tokio-rustls   | 0.26.6                               | MIT OR Apache-2.0        | https://github.com/rustls/tokio-rustls  | Candidate TLS integration and local test server                                         |
+| ring           | 0.17.14                              | Apache-2.0 AND ISC       | https://github.com/briansmith/ring      | Candidate TLS crypto provider; transitive, not an audit endorsement                     |
+| aes-siv        | 0.7.0                                | Apache-2.0 OR MIT        | https://github.com/RustCrypto/AEADs     | Candidate NTS AEAD dependency; not the capsule cipher selection                         |
+| rcgen          | 0.14.7                               | MIT OR Apache-2.0        | https://github.com/rustls/rcgen         | Test-only ephemeral loopback TLS certificate generation                                 |
+| windows-sys    | 0.61.2                               | MIT OR Apache-2.0        | https://github.com/microsoft/windows-rs | Native signing/readback/mutation rejection passed; clean VM/shell pending               |
+| wgpu           | 27.0.1                               | MIT OR Apache-2.0        | https://github.com/gfx-rs/wgpu          | Toolchain-compatible windowed glass probe; reference hardware pending                   |
+| winit          | 0.30.13                              | Apache-2.0               | https://github.com/rust-windowing/winit | Native experiment window/input/DPI; runtime validation pending                          |
+| pollster       | 0.4.0                                | MIT OR Apache-2.0        | https://github.com/zesterer/pollster    | Startup-only adapter/device future executor                                             |
+| naga           | 27.0.3                               | MIT OR Apache-2.0        | https://github.com/gfx-rs/wgpu          | Test-only WGSL parse/validation; hardware evidence not inferred                         |
+
+The published `rkik-nts 1.4.0` changelog records 2026-10-03 Windows compatibility,
+bounded-cookie and TLS-security fixes. The official RustSec
+[RUSTSEC-2026-0285](https://rustsec.org/advisories/RUSTSEC-2026-0285.html) advisory
+lists Rustls >=0.23.45 as patched; the candidate locks 0.23.45. This specific review
+does not imply that the full dependency closure has been audited or scanned.
 
 No dangerous TLS configuration, TLS key logging, fabricated beacon or development
 release path is enabled in production. No production cryptographic or platform

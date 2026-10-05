@@ -54,9 +54,11 @@ Go `drand/tlock` source at commit
 `TestDecryptText`) and the Rust candidate's Quicknet public key. It is centralized
 here so spike programs do not copy chain parameters into source files.
 
-This does **not** revalidate current live chain information. Live relay access
-returned HTTP 403 under this workspace's network policy on 2026-10-05. Shipping
-remains blocked pending live verification and the full Spike A acceptance matrix.
+The fixture itself does **not** revalidate current live chain information. Local
+relay access returned HTTP 403 under this workspace's network policy on 2026-10-05.
+Native Windows CI subsequently verified current chain metadata and real future-round
+interoperability, as recorded below and in the Spike A decision. These experimental
+pins are not automatically promoted to production defaults; revalidate before shipping.
 
 <!-- BEGIN AFTERGLOW HISTORICAL QUICKNET FIXTURE -->
 ```json
@@ -103,26 +105,24 @@ Preferred authenticated NTS operators:
 
 ### Isolated Phase 2 endpoint candidates
 
-These are experimental inputs, not production defaults or a completed external
+These are experimental inputs, not production defaults or a completed shipping
 review. The drand relay is listed by the pinned official Go reference; Cloudflare's
 hostname was confirmed in its public documentation source on 2026-10-05. The
 original Netnod hostname was listed by the selected NTS candidate's README.
 Windows CI fetched Netnod's official documentation on 2026-10-05 and found that
 the original alias is no longer listed; the candidate below is now the documented
-hostname. Live authentication at that documented hostname still needs validation.
-That site and the drand
+hostname. That site and the drand
 relay returned proxy-policy HTTP 403 in this workspace. Neither NTS operator has
 been reached from this Linux environment. Passing TLS and authenticated NTP tests
-alone does not establish operator independence or close the review checklist.
+alone does not establish operator independence or close the shipping review checklist.
 
 Windows Server 2025 x64 CI on 2026-10-05 did reach the pinned drand relay: its
 chain metadata matched the fixture and its latest beacon passed BLS verification.
 A requested future round returned HTTP 425 (Too Early), so spike polling must
 recognize that response as well as 404. Neither status authorizes release. The
-first live run stopped at this scheduling mismatch; after-round decryption still
-needs a passing rerun. The same Windows run obtained NTS-authenticated responses
+first live run stopped at this scheduling mismatch. The same Windows run obtained NTS-authenticated responses
 from both candidates with RTTs of 3,394 and 117,472 microseconds respectively.
-Netnod's documented hostname must be tested separately; all remaining gates apply.
+That run used the original Netnod alias; the documented hostname was retested below.
 Evidence: https://github.com/tkgo11/afterglow-capsule/actions/runs/37288622769/job/111693473097
 
 A subsequent Windows run confirmed target-round absence and pre-round rejection,
@@ -131,6 +131,16 @@ with a bounded budget, but must never be interpreted as future-round absence or
 successful release evidence. The same run fetched both official NTS documentation
 pages, which exposed the stale Netnod alias above.
 Evidence: https://github.com/tkgo11/afterglow-capsule/actions/runs/37289490311/job/111696272208
+
+The corrected native Windows run passed both real future-round interoperability
+directions at target round `32796465`, with pre-round rejection and exact pinned
+chain/round BLS verification. Both currently documented NTS operators completed
+certificate-verified NTS-KE and authenticated NTP, with RTTs of 18,157 and 127,917
+microseconds. The official documentation collector preserved source excerpts and
+hashes explicitly associating each selected hostname with its distinct operator.
+All live/provenance steps passed; this closes the required A/B technical evidence
+without closing the other Phase 2 gates or the shipping review checklist.
+Evidence: https://github.com/tkgo11/afterglow-capsule/actions/runs/37290256379/job/111698735744
 
 Sources:
 
@@ -195,6 +205,15 @@ resource/icon/version mutation
 → optional Authenticode signing
 → no further mutation
 ```
+
+The isolated native Windows signing experiment passed sign/verify, exact resource
+readback after signing and disposable post-sign mutation rejection on 2026-10-05.
+Its ephemeral test certificate is nonexportable and removed with its temporary
+public machine trust root. This does not select production publisher trust or
+establish SmartScreen reputation. Same-ID stock icon/version replacement also
+passed in the strengthened rerun. Explorer icon and clean recipient VM evidence
+remain outstanding in the Spike C decision; a hosted developer runner is not a
+clean recipient VM.
 
 References:
 
