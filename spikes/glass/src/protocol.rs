@@ -203,6 +203,24 @@ impl Options {
     }
 }
 
+/// Borderless fullscreen preserves the existing display mode and provides an
+/// exact monitor-sized client area without decoration/work-area clamping.
+/// Smaller cells use a borderless ordinary window on the same primary display.
+pub fn fullscreen_cell(
+    width: u32,
+    height: u32,
+    monitor_width: u32,
+    monitor_height: u32,
+) -> Result<bool, String> {
+    if width > monitor_width || height > monitor_height || monitor_width == 0 || monitor_height == 0
+    {
+        return Err(format!(
+            "physical primary display {monitor_width}x{monitor_height} cannot fit required client area {width}x{height}; no resolution/scaling simulation is allowed"
+        ));
+    }
+    Ok(width == monitor_width && height == monitor_height)
+}
+
 pub fn check_dimensions(
     options: &Options,
     width: u32,
@@ -460,6 +478,13 @@ mod tests {
             )
             .is_err()
         );
+    }
+    #[test]
+    fn monitor_sized_cells_use_borderless_fullscreen_without_rescaling() {
+        assert!(fullscreen_cell(1920, 1080, 1920, 1080).unwrap());
+        assert!(!fullscreen_cell(960, 640, 1920, 1080).unwrap());
+        assert!(!fullscreen_cell(1920, 1080, 2560, 1440).unwrap());
+        assert!(fullscreen_cell(1920, 1080, 1366, 768).is_err());
     }
     #[test]
     fn arguments_and_dpi_fail_closed() {

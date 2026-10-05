@@ -7,7 +7,8 @@ mod quality;
 
 use input::InputDriver;
 use protocol::{
-    Options, Samples, adapter_json, check_dimensions, emit, native_dpi, select_adapter, statistics,
+    Options, Samples, adapter_json, check_dimensions, emit, fullscreen_cell, native_dpi,
+    select_adapter, statistics,
 };
 use serde_json::json;
 use std::{
@@ -19,11 +20,11 @@ use std::{
 use quality::Quality;
 use winit::{
     application::ApplicationHandler,
-    dpi::PhysicalSize,
+    dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
-    window::{Window, WindowId},
+    window::{Fullscreen, Window, WindowId},
 };
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
@@ -362,7 +363,7 @@ impl Probe {
         let (average, p95) = statistics(&self.samples.intervals).unwrap();
         let (present_average, present_p95) = statistics(&self.samples.event_to_present).unwrap();
         let ack = statistics(&self.samples.acknowledgements);
-        let next = self.quality.degrade(average);
+        let next = self.quality.degrade_window(average, p95);
         self.windows += 1;
         emit(
             "sample",
@@ -391,10 +392,47 @@ impl ApplicationHandler for Probe {
         if self.gpu.is_some() {
             return;
         }
-        let result = event_loop.create_window(Window::default_attributes()
+        let Some(monitor) = event_loop.primary_monitor() else {
+            self.fail(event_loop, "physical primary display is unavailable");
+            return;
+        };
+        let monitor_size = monitor.size();
+        let fullscreen = match fullscreen_cell(
+            self.options.width,
+            self.options.height,
+            monitor_size.width,
+            monitor_size.height,
+        ) {
+            Ok(fullscreen) => fullscreen,
+            Err(reason) => {
+                self.fail(event_loop, reason);
+                return;
+            }
+        };
+        let origin = monitor.position();
+        let position = PhysicalPosition::new(
+            i64::from(origin.x) + i64::from((monitor_size.width - self.options.width) / 2),
+            i64::from(origin.y) + i64::from((monitor_size.height - self.options.height) / 2),
+        );
+        let position = match (i32::try_from(position.x), i32::try_from(position.y)) {
+            (Ok(x), Ok(y)) => PhysicalPosition::new(x, y),
+            _ => {
+                self.fail(
+                    event_loop,
+                    "physical display coordinates exceed supported bounds",
+                );
+                return;
+            }
+        };
+        let attributes=Window::default_attributes()
             .with_title("SPIKE D — public synthetic input probe; F8 harmless input; Escape fails incomplete cell")
             .with_resizable(false)
-            .with_inner_size(PhysicalSize::new(self.options.width,self.options.height)))
+            .with_decorations(false)
+            .with_position(position)
+            .with_inner_size(PhysicalSize::new(self.options.width,self.options.height))
+            .with_fullscreen(fullscreen.then_some(Fullscreen::Borderless(Some(monitor))));
+        let result = event_loop
+            .create_window(attributes)
             .map_err(|error| -> Box<dyn Error> { error.into() })
             .and_then(|window| pollster::block_on(Gpu::new(Arc::new(window), &self.options)));
         match result {
@@ -412,6 +450,8 @@ impl ApplicationHandler for Probe {
                     "width":gpu.config.width,"height":gpu.config.height,"requested_mode":self.options.quality.name(),
                     "actual_dpi_percent":gpu.window.scale_factor()*100.0,"adapter":adapter_json(&gpu.adapter),
                     "native_dpi":measured_dpi,"dpi_awareness":"PerMonitorAware",
+                    "window_mode":if gpu.window.fullscreen().is_some(){"borderless_fullscreen"}else{"borderless_window"},
+                    "quality_basis":"max(interval_avg_ms, interval_p95_ms)",
                     "drive_input":self.options.drive_input,"sample_windows":self.options.windows,"warmup_seconds":self.options.warmup,
                     "latency_definition":"CPU SendInput call to matching received winit event; event dispatch to frame submission/present call; not photon latency"}),
                 );
