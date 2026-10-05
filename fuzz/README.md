@@ -12,7 +12,19 @@ cargo +nightly fuzz run object_table -- -max_len=65536 -max_total_time=60
 cargo +nightly fuzz run workspace -- -max_len=65536 -max_total_time=60
 ```
 
-Install `cargo-fuzz` and a nightly Rust toolchain for instrumented runs. The
+For the reproducible CI smoke, install the pinned development tools and run:
+
+```sh
+rustup toolchain install nightly-2025-09-15 --profile minimal
+cargo +nightly-2025-09-15 install cargo-fuzz --version 0.13.2 --locked
+python scripts/run_fuzz_smoke.py
+```
+
+The runner verifies libFuzzer instrumentation, runs each existing target for
+30 seconds, preserves hashed logs under `fuzz/target/smoke-evidence`, and requires
+unchanged lockfiles. CI uploads those logs. This bounded smoke is useful regression
+evidence, not exhaustive fuzzing or completed Phase 12 hardening. Production Rust
+remains pinned to 1.90.0; the nightly is isolated development tooling. The
 committed fuzz lockfile is separate from the production workspace lockfile.
 `cargo check` only checks harness compilation; it is not an instrumented fuzz run.
 

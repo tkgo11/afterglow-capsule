@@ -63,3 +63,25 @@ jobs:
       - run: rustup show
       - run: cargo check --manifest-path fuzz/Cargo.toml --locked --bins
       - run: cargo fmt --manifest-path fuzz/Cargo.toml --all -- --check
+
+  fuzz-smoke:
+    name: Instrumented Phase 1 parser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install nightly-2025-09-15 --profile minimal
+      - run: cargo +nightly-2025-09-15 install cargo-fuzz --version 0.13.2 --locked
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python scripts/run_fuzz_smoke.py
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
+        with:
+          name: phase-1-parser-fuzz-smoke
+          path: fuzz/target/smoke-evidence/
+          if-no-files-found: error
+          retention-days: 14
