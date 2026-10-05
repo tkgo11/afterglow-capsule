@@ -1,0 +1,53 @@
+name: Phase 0 checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup show
+      - name: Rust tests
+        run: cargo test --locked --workspace --all-targets
+      - name: Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Rust lint
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - name: Install pinned npm
+        run: npm install --global npm@11.9.0
+      - name: Install locked frontend dependencies
+        run: npm ci
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Bootstrap topology and pins
+        run: python scripts/check_bootstrap.py
+      - name: Builder frontend tests
+        run: npm test
+      - name: Frontend and documentation formatting
+        run: npm run format:check
+      - name: Svelte and TypeScript checks
+        run: npm run check
+      - name: Frontend lint
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build

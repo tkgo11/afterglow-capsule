@@ -66,9 +66,14 @@ See [SECURITY.md](SECURITY.md) and [SPEC.md](SPEC.md).
 
 ## Project status
 
-**Pre-alpha / specification-first.**
+**Pre-alpha / Phase 0 bootstrap.**
 
-The repository currently defines the architecture and implementation contract before production code is added.
+The repository includes the Rust workspace, subsystem and application scaffolds,
+Builder frontend test harness, and Linux/Windows CI. Product implementation begins
+in Phase 1; the scaffolds cannot build or open archives.
+
+See [docs/development.md](docs/development.md) for toolchains and validation commands
+and [docs/decisions/](docs/decisions/README.md) for decisions and mandatory spike status.
 
 Implementation must follow the phases and mandatory technical spikes in [SPEC.md](SPEC.md).
 
