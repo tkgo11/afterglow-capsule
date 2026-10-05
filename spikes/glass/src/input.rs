@@ -56,7 +56,7 @@ impl InputDriver {
                 }),
             f64::from(size.height) * 0.5,
         );
-        send_input(window, position)?;
+        let position = send_input(window, position)?;
         self.pending_pointer = Some((now, position));
         self.pending_key = Some(now);
         self.last_send = Some(now);
@@ -65,8 +65,32 @@ impl InputDriver {
     }
 }
 
+#[cfg(any(windows, test))]
+fn distinct_target(
+    requested: PhysicalPosition<f64>,
+    current: PhysicalPosition<f64>,
+    width: u32,
+) -> PhysicalPosition<f64> {
+    if (requested.x - current.x).abs() <= 2.0 && (requested.y - current.y).abs() <= 2.0 {
+        PhysicalPosition::new(
+            f64::from(width)
+                * (if requested.x < f64::from(width) * 0.5 {
+                    0.55
+                } else {
+                    0.45
+                }),
+            requested.y,
+        )
+    } else {
+        requested
+    }
+}
+
 #[cfg(windows)]
-fn send_input(window: &Window, position: PhysicalPosition<f64>) -> Result<(), String> {
+fn send_input(
+    window: &Window,
+    position: PhysicalPosition<f64>,
+) -> Result<PhysicalPosition<f64>, String> {
     use windows_sys::Win32::UI::{
         Input::KeyboardAndMouse::{
             INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP,
@@ -74,8 +98,8 @@ fn send_input(window: &Window, position: PhysicalPosition<f64>) -> Result<(), St
             VK_F8,
         },
         WindowsAndMessaging::{
-            GetForegroundWindow, GetSystemMetrics, GetWindowThreadProcessId, SM_CXVIRTUALSCREEN,
-            SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
+            GetCursorPos, GetForegroundWindow, GetSystemMetrics, GetWindowThreadProcessId,
+            SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
         },
     };
     let origin = window
@@ -98,6 +122,18 @@ fn send_input(window: &Window, position: PhysicalPosition<f64>) -> Result<(), St
         if width <= 1 || height <= 1 {
             return Err("invalid virtual desktop dimensions".into());
         }
+        let mut cursor = windows_sys::Win32::Foundation::POINT { x: 0, y: 0 };
+        if GetCursorPos(&mut cursor) == 0 {
+            return Err("cannot determine physical cursor position before input-driving".into());
+        }
+        let current_client = PhysicalPosition::new(
+            f64::from(cursor.x - origin.x),
+            f64::from(cursor.y - origin.y),
+        );
+        // Windows can coalesce unchanged mouse movement. Ensure the requested
+        // target differs from the actual OS cursor, including the first send
+        // after a preceding cell ended at the same interior target.
+        let position = distinct_target(position, current_client, window.inner_size().width);
         let screen_x = f64::from(origin.x) + position.x;
         let screen_y = f64::from(origin.y) + position.y;
         if screen_x < f64::from(left)
@@ -148,11 +184,14 @@ fn send_input(window: &Window, position: PhysicalPosition<f64>) -> Result<(), St
             SendInput(1, &release, std::mem::size_of::<INPUT>() as i32);
             return Err(format!("SendInput was rejected: {failure}"));
         }
+        Ok(position)
     }
-    Ok(())
 }
 #[cfg(not(windows))]
-fn send_input(_window: &Window, _position: PhysicalPosition<f64>) -> Result<(), String> {
+fn send_input(
+    _window: &Window,
+    _position: PhysicalPosition<f64>,
+) -> Result<PhysicalPosition<f64>, String> {
     Err(
         "--drive-input requires Windows SendInput; no synthetic renderer events are substituted"
             .into(),
@@ -162,6 +201,18 @@ fn send_input(_window: &Window, _position: PhysicalPosition<f64>) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn repeated_cell_target_moves_from_actual_cursor() {
+        let target = PhysicalPosition::new(432.0, 320.0);
+        assert_eq!(
+            distinct_target(target, target, 960),
+            PhysicalPosition::new(528.0, 320.0)
+        );
+        assert_eq!(
+            distinct_target(target, PhysicalPosition::new(500.0, 320.0), 960),
+            target
+        );
+    }
     #[test]
     fn sends_are_not_received_events_and_only_matching_events_acknowledge() {
         let now = Instant::now();
