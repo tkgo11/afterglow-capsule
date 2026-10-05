@@ -6,11 +6,12 @@ param(
     [string]$ArtifactDirectory = $PSScriptRoot,
     [string]$OutputDirectory = (Join-Path $PSScriptRoot 'results/d'),
     [ValidateSet(0, 100, 150, 200)][int]$DpiPercent = 0,
-    [ValidatePattern('^[^"\\\r\n]*$')][string]$IntegratedAdapterName,
-    [ValidatePattern('^[^"\\\r\n]*$')][string]$DiscreteAdapterName,
-    [string]$PowerNote = '',
+    [ValidatePattern('^[^"\\\r\n]*$')][ValidateLength(0,512)][string]$IntegratedAdapterName,
+    [ValidatePattern('^[^"\\\r\n]*$')][ValidateLength(0,512)][string]$DiscreteAdapterName,
+    [ValidateLength(0,4096)][string]$PowerNote = '',
     [switch]$SkipHumanObservations,
-    [switch]$RequireIntelNvidia,
+    [switch]$RequireIntelNvidia = $true,
+    [switch]$GenericHardware,
     [switch]$Resume
 )
 $ErrorActionPreference = 'Stop'
@@ -49,7 +50,7 @@ Write-SpikeDJson @{
     inventory_stderr_sha256 = (Get-FileHash -Algorithm SHA256 $Stderr).Hash
 } (Join-Path $InventoryDirectory 'inventory.json')
 if (-not $Integrated.Count -or -not $Discrete.Count) { throw "Both physical adapter classes are required; integrated=$($Integrated.Count), discrete=$($Discrete.Count). No class fallback is permitted." }
-if ($RequireIntelNvidia -and (-not @($Integrated | Where-Object { $_.vendor -eq 32902 }).Count -or -not @($Discrete | Where-Object { $_.vendor -eq 4318 }).Count)) { throw 'Requested hybrid inventory was not proved: Intel integrated (vendor 0x8086) and NVIDIA discrete (0x10DE) required.' }
+if ($RequireIntelNvidia -and -not $GenericHardware -and (-not @($Integrated | Where-Object { $_.vendor -eq 32902 }).Count -or -not @($Discrete | Where-Object { $_.vendor -eq 4318 }).Count)) { throw 'Requested hybrid inventory was not proved: Intel integrated (vendor 0x8086) and NVIDIA discrete (0x10DE) required.' }
 Write-Host 'Actual enumerated adapters (OS graphics preferences are supplemental):'
 $Inventories[0].adapters | Format-Table name, device_type, vendor, device, backend, driver, driver_info | Out-Host
 Write-Host 'Each DPI session has 18 cells (both GPU classes, three resolutions and three effect modes).'
@@ -63,9 +64,17 @@ foreach ($Scale in $Scales) {
     } else { Write-Host "Requested one actual $Scale% DPI session. This parameter does not change Windows scaling." }
     foreach ($Class in @('integrated', 'discrete')) {
         $Name = if ($Class -eq 'integrated') { $IntegratedAdapterName } else { $DiscreteAdapterName }
+        $RequiredVendor = 0
+        if ($RequireIntelNvidia -and -not $GenericHardware) {
+            $RequiredVendor = if ($Class -eq 'integrated') { 32902 } else { 4318 }
+            if (-not $Name) {
+                $Candidates = if ($Class -eq 'integrated') { $Integrated } else { $Discrete }
+                $Name = @($Candidates | Where-Object { $_.vendor -eq $RequiredVendor })[0].name
+            }
+        }
         $Parameters = @{
             GpuClass = $Class; DpiPercent = $Scale; ArtifactDirectory = $ArtifactDirectory; OutputDirectory = $OutputDirectory;
-            PowerNote = $PowerNote; HumanObservations = (-not $SkipHumanObservations); Resume = [bool]$Resume
+            PowerNote = $PowerNote; RequiredVendor = $RequiredVendor; HumanObservations = (-not $SkipHumanObservations); Resume = [bool]$Resume
         }
         if ($Name) { $Parameters.AdapterName = $Name }
         & (Join-Path $PSScriptRoot 'collect_matrix.ps1') @Parameters

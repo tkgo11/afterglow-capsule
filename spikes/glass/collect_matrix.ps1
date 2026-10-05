@@ -5,8 +5,9 @@ param(
     [Parameter(Mandatory=$true)][ValidateSet(100, 150, 200)][int]$DpiPercent,
     [string]$ArtifactDirectory = $PSScriptRoot,
     [string]$OutputDirectory = (Join-Path $PSScriptRoot 'results/d'),
-    [ValidatePattern('^[^"\\\r\n]*$')][string]$AdapterName,
-    [string]$PowerNote = '',
+    [ValidatePattern('^[^"\\\r\n]*$')][ValidateLength(0,512)][string]$AdapterName,
+    [ValidateLength(0,4096)][string]$PowerNote = '',
+    [ValidateSet(0, 32902, 4318)][int]$RequiredVendor = 0,
     [switch]$HumanObservations,
     [switch]$Resume
 )
@@ -73,7 +74,7 @@ foreach ($Size in @(@(960, 640), @(1440, 900), @(1920, 1080))) {
             if ((Get-Item $Raw).Length -gt 10485760) { throw 'raw log exceeds 10 MiB bound' }
             $Records = @(Read-SpikeDRecords $Raw)
         } catch { $TransportFailure = 'invalid JSONL output: ' + $_.Exception.Message }
-        $Checked = Test-SpikeDProtocol -Records $Records -GpuClass $GpuClass -DpiPercent $DpiPercent -Width $Size[0] -Height $Size[1] -Mode $Mode -ExitCode $ExitCode
+        $Checked = Test-SpikeDProtocol -Records $Records -GpuClass $GpuClass -DpiPercent $DpiPercent -Width $Size[0] -Height $Size[1] -Mode $Mode -ExitCode $ExitCode -RequiredVendor $RequiredVendor
         $Failures = @($Checked.failures)
         if ($TransportFailure) { $Failures += $TransportFailure }
         $Observation = @{ responsive_input = $null; foreground_preserved = $null; note = $null }
@@ -91,7 +92,7 @@ foreach ($Size in @(@(960, 640), @(1440, 900), @(1920, 1080))) {
             format_name = 'afterglow-spike-d-cell-result'; format_version = 2; minimum_reader_version = 2;
             cell_id = $CellId; session_id = $SessionId; captured_utc = [DateTime]::UtcNow.ToString('o'); provenance = $Provenance;
             exe_sha256 = $Expected.exe_sha256; requested_gpu_class = $GpuClass; requested_dpi_percent = $DpiPercent;
-            width = $Size[0]; height = $Size[1]; requested_mode = $Mode;
+            width = $Size[0]; height = $Size[1]; requested_mode = $Mode; requested_adapter_vendor = $RequiredVendor;
             actual_adapter = (Get-SpikeDField $Checked.start 'adapter'); actual_dpi_percent = (Get-SpikeDField $Checked.start 'actual_dpi_percent');
             samples = @($Checked.samples); input_source = 'windows-sendinput'; exit_code = $ExitCode;
             machine_status = $(if ($Failures.Count) { 'FAIL' } else { 'PASS' }); failures = $Failures;

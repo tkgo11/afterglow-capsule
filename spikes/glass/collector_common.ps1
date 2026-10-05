@@ -19,7 +19,7 @@ function Test-SpikeDCount {
     return (Test-SpikeDFiniteNumber $Value -AllowZero:$AllowZero) -and ([math]::Floor([double]$Value) -eq [double]$Value)
 }
 function Test-SpikeDProtocol {
-    param([object[]]$Records, [string]$GpuClass, [int]$DpiPercent, [int]$Width, [int]$Height, [string]$Mode, [int]$ExitCode)
+    param([object[]]$Records, [string]$GpuClass, [int]$DpiPercent, [int]$Width, [int]$Height, [string]$Mode, [int]$ExitCode, [int]$RequiredVendor = 0)
     $Failures = New-Object 'Collections.Generic.List[string]'
     $ExpectedType = if ($GpuClass -eq 'integrated') { 'IntegratedGpu' } else { 'DiscreteGpu' }
     if ($ExitCode -ne 0) { $Failures.Add("probe exit code $ExitCode") }
@@ -49,6 +49,7 @@ function Test-SpikeDProtocol {
     if ((Get-SpikeDField $Start 'requested_dpi_percent') -ne $DpiPercent) { $Failures.Add('probe requested DPI mismatch') }
     if ((Get-SpikeDField $Start 'requested_gpu_class') -ne $GpuClass) { $Failures.Add('probe requested GPU class mismatch') }
     $Adapter = Get-SpikeDField $Start 'adapter'
+    if ($RequiredVendor -and (Get-SpikeDField $Adapter 'vendor') -ne $RequiredVendor) { $Failures.Add('actual adapter vendor differs from explicitly requested reference hardware') }
     if ((Get-SpikeDField $Adapter 'device_type') -ne $ExpectedType) { $Failures.Add('actual adapter class mismatch') }
     foreach ($Field in @('name', 'vendor', 'device', 'backend', 'driver', 'driver_info')) {
         if ($null -eq (Get-SpikeDField $Adapter $Field)) { $Failures.Add("adapter metadata missing: $Field") }
@@ -83,10 +84,28 @@ function Test-SpikeDProtocol {
         if ($Mode -eq 'opaque' -and ($ActualMode -ne 'opaque' -or $NextMode -ne 'opaque')) { $Failures.Add('Reduced Transparency preference changed') }
         if ($Mode -eq 'reduced' -and ($ActualMode -eq 'full' -or $NextMode -eq 'full')) { $Failures.Add('low-quality request upgraded to full') }
         $Average = Get-SpikeDField $Sample 'interval_avg_ms'
-        if ((Test-SpikeDFiniteNumber $Average) -and $Average -gt 16.7 -and $ActualMode -eq 'full' -and $NextMode -eq 'full') { $Failures.Add('slow full effects failed to degrade automatically') }
-        if ((Test-SpikeDFiniteNumber $Average) -and $Average -gt 25 -and $ActualMode -eq 'reduced' -and $NextMode -eq 'reduced') { $Failures.Add('slow reduced effects failed to become static') }
+        $P95 = Get-SpikeDField $Sample 'interval_p95_ms'
+        if ((Test-SpikeDFiniteNumber $Average) -and (Test-SpikeDFiniteNumber $P95)) {
+            $Cadence = [math]::Max([double]$Average, [double]$P95)
+            $RequiredNext = $ActualMode
+            if ($ActualMode -notin @('opaque', 'static')) {
+                if ($Cadence -gt 25) { $RequiredNext = 'static' }
+                elseif ($ActualMode -eq 'full' -and $Cadence -gt 16.7) { $RequiredNext = 'reduced' }
+            }
+            if ($NextMode -ne $RequiredNext) { $Failures.Add('automatic quality transition does not match conservative maximum of mean/p95 cadence') }
+        }
     }
     return [pscustomobject]@{ failures = @($Failures.ToArray()); start = $Start; samples = $Samples; machine_status = $(if ($Failures.Count) { 'FAIL' } else { 'PASS' }) }
+}
+function Test-SpikeDObservationMayBeCompleted {
+    param($Observation)
+    # Failed original observations require a new physical attempt, never re-labelling.
+    return (Get-SpikeDField $Observation 'responsive_input') -ne $false -and (Get-SpikeDField $Observation 'foreground_preserved') -ne $false
+}
+function Read-SpikeDBoundedJson {
+    param([string]$Path)
+    if ((Get-Item -LiteralPath $Path).Length -gt 1048576) { throw 'JSON evidence exceeds 1 MiB bound' }
+    return (Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json)
 }
 function Write-SpikeDJson {
     param($Value, [string]$Path)

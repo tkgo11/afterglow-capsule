@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'collector_common.ps1')
-foreach ($Path in @('collector_common.ps1', 'collect_matrix.ps1', 'run_all_gpu_validation.ps1', 'test_collectors.ps1')) {
+foreach ($Path in @('collector_common.ps1', 'collect_matrix.ps1', 'run_all_gpu_validation.ps1', 'test_collectors.ps1', 'review_gpu_evidence.ps1')) {
     $Tokens = $null
     $Errors = $null
     [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot $Path), [ref]$Tokens, [ref]$Errors) | Out-Null
@@ -78,5 +78,19 @@ $Fixture = New-SyntheticProtocolFixture; $Fixture = @($Fixture[0], $Fixture[1], 
 $Fixture = New-SyntheticProtocolFixture; $Fixture[1].pointer_events = 90.5; Assert-Rejected $Fixture 'fractional received event counter'
 $RunnerSource = Get-Content -Raw (Join-Path $PSScriptRoot 'run_all_gpu_validation.ps1')
 if ($RunnerSource -notmatch "event -eq 'adapter_inventory'") { throw 'Adapter inventory event protocol differs from the Rust probe' }
+$Tests++
+$Fixture = New-SyntheticProtocolFixture; $Fixture[1].interval_p95_ms = 50; Assert-Rejected $Fixture 'bad p95 cadence hidden by fast average'
+$Fixture = New-SyntheticProtocolFixture; $Fixture[1].interval_p95_ms = 20; Assert-Rejected $Fixture 'p95 requires reduced effects'
+$Fixture = New-SyntheticProtocolFixture; $Fixture[1].interval_avg_ms = 30; $Fixture[1].next_mode = 'static'; $Fixture[2].mode = 'static'; $Fixture[2].next_mode = 'static'; $Fixture[3].mode = 'static'; $Fixture[3].next_mode = 'static'
+if ((Invoke-SyntheticCheck $Fixture).machine_status -ne 'PASS') { throw 'Correct conservative degradation fixture was rejected' }
+$Tests++
+$Fixture = New-SyntheticProtocolFixture
+if ((Test-SpikeDProtocol -Records $Fixture -GpuClass integrated -DpiPercent 150 -Width 960 -Height 640 -Mode full -ExitCode 0 -RequiredVendor 4318).machine_status -ne 'FAIL') { throw 'Wrong requested hybrid vendor was accepted' }
+$Tests++
+if (Test-SpikeDObservationMayBeCompleted @{responsive_input=$false;foreground_preserved=$null}) { throw 'Failed input observation may not be relabelled PASS' }
+$Tests++
+if (Test-SpikeDObservationMayBeCompleted @{responsive_input=$null;foreground_preserved=$false}) { throw 'Failed foreground observation may not be relabelled PASS' }
+$Tests++
+if (-not (Test-SpikeDObservationMayBeCompleted @{responsive_input=$null;foreground_preserved=$null})) { throw 'An actually observed pending cell may be completed by explicit human review' }
 $Tests++
 Write-Output "$Tests pure collector protocol tests passed. No physical evidence was generated."
