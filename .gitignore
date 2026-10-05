@@ -1,0 +1,17 @@
+/target/
+/node_modules/
+/packages/builder-ui/node_modules/
+/packages/builder-ui/dist/
+/packages/builder-ui/coverage/
+*.log
+*.exe
+*.pdb
+*.agproject
+*.agentry
+*.aginvite
+*.agrecovery
+*.afterglow/
+.env
+.env.*
+!.env.example
+__pycache__/

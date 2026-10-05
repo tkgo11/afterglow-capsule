@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["apps/builder", "apps/viewer", "crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
