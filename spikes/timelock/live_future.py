@@ -50,6 +50,13 @@ def get_json(url):
     return json.loads(data)
 
 
+def is_future_round_unavailable(status):
+    # Actual relay observation: a future round may be 425 Too Early, not just
+    # 404. This is test scheduling evidence only; no HTTP status grants release.
+    # Authentication/server failures must not be disguised as future absence.
+    return status in [404, 425]
+
+
 def call(binary, *args, success=True):
     process = subprocess.run([str(binary), *map(str, args)], capture_output=True, timeout=30)
     if process.stdout:
@@ -79,11 +86,11 @@ def run(rust, reference, relay):
         go_cipher, rust_cipher = folder / "go.tle", folder / "rust.tle"
         call(reference, "encrypt", info, plain, go_cipher, target)
         call(rust, "encrypt", info, plain, rust_cipher, target)
-        # The real relay must not have published the target yet.
+        # The real relay must not have published the target yet (404/425).
         try:
             get_json(base + f"/public/{target}")
         except urllib.error.HTTPError as error:
-            if error.code != 404:
+            if not is_future_round_unavailable(error.code):
                 raise
         else:
             raise RuntimeError("target was already available; rerun with a new future round")
@@ -99,7 +106,7 @@ def run(rust, reference, relay):
                 beacon_data = get_json(base + f"/public/{target}")
                 break
             except urllib.error.HTTPError as error:
-                if error.code != 404:
+                if not is_future_round_unavailable(error.code):
                     raise
             if time.monotonic() >= deadline:
                 raise TimeoutError("target-round beacon did not arrive within the spike timeout")

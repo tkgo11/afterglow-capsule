@@ -112,6 +112,16 @@ relay returned proxy-policy HTTP 403 in this workspace. Neither NTS operator has
 been reached from this Linux environment. Passing TLS and authenticated NTP tests
 alone does not establish operator independence or close the review checklist.
 
+Windows Server 2025 x64 CI on 2026-10-05 did reach the pinned drand relay: its
+chain metadata matched the fixture and its latest beacon passed BLS verification.
+A requested future round returned HTTP 425 (Too Early), so spike polling must
+recognize that response as well as 404. Neither status authorizes release. The
+first live run stopped at this scheduling mismatch; after-round decryption still
+needs a passing rerun. The same Windows run obtained NTS-authenticated responses
+from both candidates with RTTs of 3,394 and 117,472 microseconds respectively.
+Netnod's official hostname/provenance review and all remaining gates still apply.
+Evidence: https://github.com/tkgo11/afterglow-capsule/actions/runs/37288622769/job/111693473097
+
 Sources:
 
 - https://github.com/drand/tlock/blob/3ea7fbb59e85d00b0d9b6b2554e9652d5766811b/README.md
@@ -127,8 +137,16 @@ Sources:
   "minimum_reader_version": 1,
   "drand_relay": "https://api.drand.sh",
   "nts_operators": [
-    { "operator": "Cloudflare", "host": "time.cloudflare.com" },
-    { "operator": "Netnod", "host": "nts.ntp.se" }
+    {
+      "operator": "Cloudflare",
+      "host": "time.cloudflare.com",
+      "documentation_url": "https://developers.cloudflare.com/time-services/nts/"
+    },
+    {
+      "operator": "Netnod",
+      "host": "nts.ntp.se",
+      "documentation_url": "https://www.netnod.se/netnod-time/how-to-use-nts"
+    }
   ]
 }
 ```

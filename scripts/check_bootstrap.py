@@ -32,6 +32,14 @@ class BootstrapTests(unittest.TestCase):
         actual = {p["name"] for p in self.metadata["packages"] if p["id"] in members}
         self.assertEqual(actual, CRATES | {"afterglow-builder", "afterglow-viewer"})
 
+    def test_spike_packages_cannot_enter_the_production_dependency_graph(self):
+        spike_root = ROOT / "spikes"
+        for package in self.metadata["packages"]:
+            self.assertFalse(
+                pathlib.Path(package["manifest_path"]).resolve().is_relative_to(spike_root),
+                f"isolated spike entered production graph: {package['name']}",
+            )
+
     def test_viewer_dependency_closure_has_no_creator_application_or_packager(self):
         nodes = {n["id"]: n for n in self.metadata["resolve"]["nodes"]}
         pending = [self.packages["afterglow-viewer"]["id"]]

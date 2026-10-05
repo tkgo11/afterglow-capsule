@@ -2,10 +2,16 @@
 
 import copy
 import unittest
-from live_future import fixture, validate_info, validate_relay
+from live_future import fixture, is_future_round_unavailable, validate_info, validate_relay
 
 
 class LiveInputs(unittest.TestCase):
+    def test_future_statuses_do_not_hide_authentication_or_server_failures(self):
+        for status in [404, 425]:
+            self.assertTrue(is_future_round_unavailable(status))
+        for status in [200, 401, 403, 429, 500, 503]:
+            self.assertFalse(is_future_round_unavailable(status))
+
     def test_transport_configuration_rejects_credentials_and_non_https(self):
         for value in ["http://relay.example", "https://user:secret@relay.example",
                       "https://relay.example/path", "https://relay.example?q=1",

@@ -60,6 +60,9 @@ jobs:
       - name: Two independent NTS operator candidates
         if: ${{ !cancelled() }}
         run: python spikes/run_live.py nts
+      - name: Official NTS operator documentation provenance
+        if: ${{ !cancelled() }}
+        run: python spikes/nts/review_operator_docs.py
 
   pe-signing:
     name: Windows PE resource/signing experiment

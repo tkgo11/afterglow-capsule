@@ -1,6 +1,7 @@
 # Development
 
-The repository has the Phase 0 foundation and Phase 1 format/schema core.
+The repository has the Phase 0 foundation, Phase 1 format/schema core and isolated
+Phase 2 experiments with unresolved mandatory acceptance gates.
 Follow SPEC.md in order. Neither binary scaffold is a working application.
 
 ## Toolchains
@@ -60,3 +61,9 @@ separation and version pins. It does not verify release cryptography.
 Use `docs/decisions` for decisions and spike evidence. Revalidate external facts in
 `docs/external-assumptions.md` at the relevant gates. Do not add private fixtures,
 recovery credentials or signing keys to the repository.
+
+See [spikes/README.md](../spikes/README.md) for the separate Cargo/Go toolchains and
+commands. Root Cargo commands deliberately exclude these experiments. Bootstrap
+checks reject any spike package appearing in the production dependency graph.
+Reference GPU and clean recipient VM evidence must be recorded separately from
+hosted CI results; a scheduled or passing partial workflow does not close Phase 2.
