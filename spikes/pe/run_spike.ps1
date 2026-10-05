@@ -22,7 +22,9 @@ try {
     New-Item -ItemType Directory -Path $Scratch | Out-Null
     Push-Location $Repo
     try {
-        Run-Native "cargo" @("build", "--manifest-path", "spikes/Cargo.toml", "--locked", "-p", "afterglow-spike-c")
+        # A clean Windows recipient must not depend on a developer-installed
+        # VC++ redistributable. Link the fixture runtime's CRT statically.
+        Run-Native "cargo" @("build", "--manifest-path", "spikes/Cargo.toml", "--locked", "--config", 'build.rustflags=["-C","target-feature=+crt-static"]', "-p", "afterglow-spike-c")
         Run-Native "python" @("spikes/pe/fixtures.py", $Scratch)
         Run-Native "python" @("spikes/pe/fixtures.py", (Join-Path $Scratch "stock"), "--variant", "baseline")
     } finally { Pop-Location }

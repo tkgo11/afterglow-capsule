@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
@@ -37,6 +38,7 @@ jobs:
       - run: cargo fmt --manifest-path spikes/Cargo.toml --all -- --check
       - run: cargo clippy --manifest-path spikes/Cargo.toml --locked --all-targets -- -D warnings
       - run: cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-spike-d
+      - run: cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-phase2-evidence
 
   live-windows:
     name: Real future-round timelock and independent NTS candidates (Windows)
@@ -46,6 +48,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
@@ -72,6 +75,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -84,16 +88,21 @@ jobs:
           $SdkTools = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending
           if (-not $SdkTools) { throw "Windows SDK SignTool is missing" }
           ./spikes/pe/run_spike.ps1 -SignTool $SdkTools[0].FullName -EvidenceDirectory (Join-Path $env:GITHUB_WORKSPACE "spikes/target/manual-evidence")
-      - name: Check recipient collector on Windows PowerShell 5.1
+      - run: cargo build --manifest-path spikes/Cargo.toml --locked --release -p afterglow-phase2-evidence
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - name: Prepare versioned clean-recipient bundle
+        shell: pwsh
+        run: ./spikes/manual/prepare_artifact.ps1 -Kind c -EvidenceDirectory (Join-Path $env:GITHUB_WORKSPACE "spikes/target/manual-evidence")
+      - name: Check strict recipient collector on Windows PowerShell 5.1
         shell: pwsh
         run: |
           $Evidence = Join-Path $env:GITHUB_WORKSPACE "spikes/target/manual-evidence"
-          Copy-Item spikes/pe/check_clean_vm.ps1 $Evidence
-          Copy-Item spikes/manual/README.md $Evidence
-          & powershell.exe -NoProfile -NonInteractive -File "$Evidence/check_clean_vm.ps1" -ArtifactDirectory $Evidence -Report "$Evidence/ci-collector-smoke.json"
-          if ($LASTEXITCODE -ne 0) { throw "Recipient collector smoke check failed" }
-          $Observed = Get-Content -Raw "$Evidence/ci-collector-smoke.json" | ConvertFrom-Json
-          if ($Observed.clean_recipient_vm_attested -or $Observed.shell_icon_visible_attested) { throw "Hosted CI must not attest to manual acceptance" }
+          & powershell.exe -NoProfile -NonInteractive -File spikes/pe/test_collectors.ps1 -ArtifactDirectory $Evidence
+          if ($LASTEXITCODE -ne 0) { throw "Strict collector regression/native shell tests failed" }
+      - name: Record clean-Windows cloud feasibility
+        shell: pwsh
+        run: ./spikes/manual/check_cloud_windows.ps1 -Report spikes/target/manual-evidence/cloud-windows-feasibility.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: phase-2-clean-vm-evidence
@@ -109,23 +118,28 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - run: cargo build --manifest-path spikes/Cargo.toml --locked --release -p afterglow-spike-d
-      - name: Prepare public probe and parse collector with PowerShell 5.1
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - run: cargo build --manifest-path spikes/Cargo.toml --locked --release -p afterglow-phase2-evidence
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - name: Check matrix collectors with PowerShell 5.1
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -NonInteractive -File spikes/glass/test_collectors.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Matrix collector regression tests failed" }
+      - name: Prepare explicit-adapter/input v2 public probe bundle
         shell: pwsh
         run: |
           $Evidence = Join-Path $env:GITHUB_WORKSPACE "spikes/target/gpu-evidence"
           New-Item -ItemType Directory $Evidence | Out-Null
-          Copy-Item spikes/target/release/afterglow-spike-d.exe "$Evidence/SpikeD-Glass.exe"
-          Copy-Item spikes/glass/collect_matrix.ps1 $Evidence
-          Copy-Item spikes/manual/README.md $Evidence
-          @{
-            format_name = "afterglow-spike-d-evidence"; format_version = 1; minimum_reader_version = 1;
-            exe_sha256 = (Get-FileHash -Algorithm SHA256 "$Evidence/SpikeD-Glass.exe").Hash;
-            windows = [Environment]::OSVersion.VersionString
-          } | ConvertTo-Json | Set-Content -Encoding utf8 "$Evidence/spike-d-expected.json"
-          & powershell.exe -NoProfile -NonInteractive -Command '$Errors = $null; $Tokens = $null; [Management.Automation.Language.Parser]::ParseFile("spikes/glass/collect_matrix.ps1", [ref]$Tokens, [ref]$Errors) | Out-Null; if ($Errors.Count) { $Errors | Out-String | Write-Error; exit 1 }'
-          if ($LASTEXITCODE -ne 0) { throw "PowerShell 5.1 collector syntax failed" }
+          ./spikes/manual/prepare_artifact.ps1 -Kind d -EvidenceDirectory $Evidence
+          & "$Evidence/SpikeD-Glass.exe" --list-adapters | Set-Content -Encoding utf8 "$Evidence/hosted-adapter-inventory.jsonl"
+          if ($LASTEXITCODE -ne 0) { throw "Native adapter enumeration failed" }
+          # Inventory is provenance/diagnostics only: hosted adapters close no physical cells.
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: phase-2-gpu-probe
