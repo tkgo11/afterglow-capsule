@@ -2,6 +2,9 @@
 /fuzz/target/
 /fuzz/artifacts/
 /fuzz/corpus/
+/spikes/target/
+/spikes/timelock/go/spike-a-reference
+/spikes/timelock/go/spike-a-reference.exe
 /node_modules/
 /packages/builder-ui/node_modules/
 /packages/builder-ui/dist/

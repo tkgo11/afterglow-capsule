@@ -46,12 +46,94 @@ Listing a library here is **not an audit endorsement**.
 
 Production adoption is blocked until it passes the interoperability spike in SPEC.md.
 
+### Phase 2 historical interoperability baseline
+
+The following **historical** public material was cross-checked against the official
+Go `drand/tlock` source at commit
+`3ea7fbb59e85d00b0d9b6b2554e9652d5766811b` (`tlock_test.go`,
+`TestDecryptText`) and the Rust candidate's Quicknet public key. It is centralized
+here so spike programs do not copy chain parameters into source files.
+
+This does **not** revalidate current live chain information. Live relay access
+returned HTTP 403 under this workspace's network policy on 2026-10-05. Shipping
+remains blocked pending live verification and the full Spike A acceptance matrix.
+
+<!-- BEGIN AFTERGLOW HISTORICAL QUICKNET FIXTURE -->
+```json
+{
+  "format_name": "afterglow-spike-a-public-fixture",
+  "format_version": 1,
+  "minimum_reader_version": 1,
+  "chain": {
+    "public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
+    "period": 3,
+    "genesis_time": 1692803367,
+    "hash": "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971",
+    "groupHash": "f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e",
+    "schemeID": "bls-unchained-g1-rfc9380",
+    "metadata": { "beaconID": "quicknet" }
+  },
+  "historical_beacon": {
+    "round": 12040883,
+    "signature": "929906c959032ab363c9f26570d215d66f5c06cb0c44fe508c12bb5839f04ec895bb6868e5b9ff13ab289bdb5266b394"
+  },
+  "additional_quicknet_beacon": {
+    "round": 1000,
+    "signature": "b44679b9a59af2ec876b1a6b1ad52ea9b1615fc3982b19576350f93447cb1125e342b73a8dd2bacbe47e4b6b63ed5e39"
+  },
+  "historical_foreign_beacon": {
+    "round": 1000,
+    "signature": "b09eacd45767c4d58306b98901ad0d6086e2663766f3a4ec71d00cf26f0f49eaf248abc7151c60cf419c4e8b37e80412"
+  }
+}
+```
+<!-- END AFTERGLOW HISTORICAL QUICKNET FIXTURE -->
+
+The additional round-1000 Quicknet and foreign Fastnet signatures come from the
+Rust candidate source at commit `717a5d1d91c7182a5e32f291e65583ab8729edbc`,
+`tlock/src/lib.rs`, `test_pk_g2_sig_g1`, under the corresponding RFC9380 feature
+branches. They are public historical rejection-test inputs, not production profiles.
+
 ## Time evidence
 
 Preferred authenticated NTS operators:
 
 - Cloudflare NTS
 - Netnod NTS
+
+### Isolated Phase 2 endpoint candidates
+
+These are experimental inputs, not production defaults or a completed external
+review. The drand relay is listed by the pinned official Go reference; Cloudflare's
+hostname was confirmed in its public documentation source on 2026-10-05. The
+Netnod hostname is listed by the selected NTS candidate's README and still needs
+confirmation against Netnod's official documentation. That site and the drand
+relay returned proxy-policy HTTP 403 in this workspace. Neither NTS operator has
+been reached from this Linux environment. Passing TLS and authenticated NTP tests
+alone does not establish operator independence or close the review checklist.
+
+Sources:
+
+- https://github.com/drand/tlock/blob/3ea7fbb59e85d00b0d9b6b2554e9652d5766811b/README.md
+- https://github.com/cloudflare/cloudflare-docs/blob/production/src/content/docs/time-services/nts.mdx
+- https://github.com/aguacero7/rkik-nts (published 1.4.0 README)
+
+<!-- BEGIN AFTERGLOW SPIKE ENDPOINT CANDIDATES -->
+
+```json
+{
+  "format_name": "afterglow-spike-endpoint-candidates",
+  "format_version": 1,
+  "minimum_reader_version": 1,
+  "drand_relay": "https://api.drand.sh",
+  "nts_operators": [
+    { "operator": "Cloudflare", "host": "time.cloudflare.com" },
+    { "operator": "Netnod", "host": "nts.ntp.se" }
+  ]
+}
+```
+
+<!-- END AFTERGLOW SPIKE ENDPOINT CANDIDATES -->
 
 Additional/reference sources:
 
