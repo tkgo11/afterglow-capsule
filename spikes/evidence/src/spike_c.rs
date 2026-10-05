@@ -54,7 +54,13 @@ pub fn validate(root: &Path, trusted: Option<&Value>) -> Gate {
         if integer(env,"product_type")?!=1 {return Err("Windows Server/development runner does not qualify as clean recipient Windows client".into());}
         yes(env,"process_64_bit")?;no(env,"hosted_ci_detected")?;yes(env,"virtual_machine_detected")?;
         for key in ["os_caption","os_version","manufacturer","model"] {text(env,key)?;}
-        if !text(env,"os_caption")?.contains("Windows") {return Err("recipient is not Windows".into());}
+        let caption = text(env, "os_caption")?;
+        if !caption.contains("Windows 10") && !caption.contains("Windows 11") {
+            return Err("recipient must be Windows 10/11 client".into());
+        }
+        if text(env, "os_native_architecture")? != "AMD64" {
+            return Err("recipient native architecture must be AMD64; ARM64 emulation cannot qualify".into());
+        }
         if !matches!(text(env,"os_architecture")?,"64-bit"|"x86_64"|"AMD64") {return Err("recipient OS architecture is not x64".into());}
         let build=text(env,"os_build")?;if build.parse::<u32>().ok().filter(|v|*v>=10240).is_none() {return Err("recipient Windows build is invalid".into());}
         if !array(env,"developer_tools")?.is_empty() {return Err("developer tooling is installed on recipient VM".into());}
@@ -114,15 +120,7 @@ pub fn validate(root: &Path, trusted: Option<&Value>) -> Gate {
             text(&report, "shell_icon_sha256")?,
             JSON_LIMIT,
         )?;
-        if bytes.len() < 45 || &bytes[..8] != b"\x89PNG\r\n\x1a\n" || &bytes[12..16] != b"IHDR" {
-            return Err("shell icon evidence is not a PNG image".into());
-        }
-        let width = u32::from_be_bytes(bytes[16..20].try_into().map_err(|_| "invalid PNG width")?);
-        let height =
-            u32::from_be_bytes(bytes[20..24].try_into().map_err(|_| "invalid PNG height")?);
-        if width == 0 || height == 0 || width > 8192 || height > 8192 {
-            return Err("invalid shell icon evidence dimensions".into());
-        }
+        png(&bytes)?;
         Ok(())
     })());
     if let Some(human) = report.get("shell_icon_observation") {
@@ -184,4 +182,113 @@ fn architecture(bytes: &[u8]) -> Result<()> {
         return Err("executable is not native PE x64".into());
     }
     Ok(())
+}
+
+// PNG specifies this ISO 3309 CRC for chunks. It detects corrupt container data;
+// it is not a cryptographic authenticity claim or proof of human-visible output.
+fn png_crc(bytes: &[u8]) -> u32 {
+    let mut crc = u32::MAX;
+    for &byte in bytes {
+        crc ^= u32::from(byte);
+        for _ in 0..8 {
+            crc = (crc >> 1) ^ (0xedb8_8320u32 & (0u32.wrapping_sub(crc & 1)));
+        }
+    }
+    !crc
+}
+fn png(bytes: &[u8]) -> Result<()> {
+    if bytes.get(..8) != Some(b"\x89PNG\r\n\x1a\n") {
+        return Err("shell icon evidence is not PNG".into());
+    }
+    let mut cursor = 8usize;
+    let mut seen_header = false;
+    let mut seen_data = false;
+    let mut data_closed = false;
+    let mut seen_palette = false;
+    for index in 0..1024 {
+        let header_end = cursor.checked_add(8).ok_or("PNG chunk overflow")?;
+        let header = bytes
+            .get(cursor..header_end)
+            .ok_or("PNG chunk header truncated")?;
+        let length = u32::from_be_bytes(header[..4].try_into().map_err(|_| "PNG length")?) as usize;
+        let kind = &header[4..];
+        if !kind.iter().all(u8::is_ascii_alphabetic) {
+            return Err("invalid PNG chunk type".into());
+        }
+        let payload_end = header_end
+            .checked_add(length)
+            .ok_or("PNG payload overflow")?;
+        let chunk_end = payload_end.checked_add(4).ok_or("PNG CRC overflow")?;
+        let payload = bytes
+            .get(header_end..payload_end)
+            .ok_or("PNG chunk payload truncated")?;
+        let expected_crc = u32::from_be_bytes(
+            bytes
+                .get(payload_end..chunk_end)
+                .ok_or("PNG CRC truncated")?
+                .try_into()
+                .map_err(|_| "PNG CRC")?,
+        );
+        if png_crc(&bytes[cursor + 4..payload_end]) != expected_crc {
+            return Err("PNG chunk CRC mismatch".into());
+        }
+        match kind {
+            b"IHDR" if index == 0 && length == 13 => {
+                let width = u32::from_be_bytes(payload[..4].try_into().map_err(|_| "PNG width")?);
+                let height =
+                    u32::from_be_bytes(payload[4..8].try_into().map_err(|_| "PNG height")?);
+                if width == 0 || height == 0 || width > 8192 || height > 8192 {
+                    return Err("invalid shell icon evidence dimensions".into());
+                }
+                if !matches!(
+                    (payload[8], payload[9]),
+                    (1 | 2 | 4 | 8 | 16, 0)
+                        | (8 | 16, 2)
+                        | (1 | 2 | 4 | 8, 3)
+                        | (8 | 16, 4)
+                        | (8 | 16, 6)
+                ) || payload[10] != 0
+                    || payload[11] != 0
+                    || payload[12] > 1
+                {
+                    return Err("invalid PNG image header".into());
+                }
+                seen_header = true;
+            }
+            b"IDAT" if seen_header && !data_closed => {
+                seen_data |= length > 0;
+            }
+            b"IEND" if seen_header && seen_data && length == 0 => {
+                if chunk_end != bytes.len() {
+                    return Err("PNG trailing data".into());
+                }
+                return Ok(());
+            }
+            b"PLTE"
+                if seen_header
+                    && !seen_data
+                    && !seen_palette
+                    && length > 0
+                    && length <= 768
+                    && length.is_multiple_of(3) =>
+            {
+                seen_palette = true
+            }
+            _ if seen_header && kind[0].is_ascii_lowercase() => {
+                if seen_data {
+                    data_closed = true;
+                }
+            }
+            _ => return Err("invalid PNG chunk order/critical chunk".into()),
+        }
+        cursor = chunk_end;
+    }
+    Err("PNG chunk count exceeds bound".into())
+}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn png_standard_crc_check_vector() {
+        assert_eq!(super::png_crc(b"123456789"), 0xcbf4_3926);
+    }
 }

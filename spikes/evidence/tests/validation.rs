@@ -67,12 +67,13 @@ impl Fixture {
         vm["installation_kind"] = "clean-windows-vm".into();
         vm["clean_recipient_attested"] = true.into();
         write(&c, "vm-provenance.json", &vm);
-        // Minimal PNG signature/IHDR for parser validation; never an actual shell screenshot.
-        let mut png = vec![0; 45];
-        png[..8].copy_from_slice(b"\x89PNG\r\n\x1a\n");
-        png[12..16].copy_from_slice(b"IHDR");
-        png[16..20].copy_from_slice(&32u32.to_be_bytes());
-        png[20..24].copy_from_slice(&32u32.to_be_bytes());
+        // Synthetic valid PNG container, never a real shell screenshot.
+        let hex = "89504e470d0a1a0a0000000d4948445200000020000000200806000000737a7af40000003049444154789cedce2101000008033042d03f0099e802316e26e6573d7b49252020202020202020202020202020900e3c52ab6497c1c055c80000000049454e44ae426082";
+        let png: Vec<u8> = hex
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
+            .collect();
         fs::write(c.join("shell-icon.png"), &png).unwrap();
         let mut cr = doc("afterglow-spike-c-clean-vm-result");
         cr["provenance"] = provenance();
@@ -81,7 +82,7 @@ impl Fixture {
         cr["file_version"] = "2.0.0.0".into();
         cr["architecture"] = "x86_64".into();
         cr["one_file_execution"] = "passed".into();
-        cr["environment"] = json!({"os_caption":"Windows 11 test","os_build":"26100","os_version":"10.0.26100","os_architecture":"64-bit","product_type":1,"process_64_bit":true,"developer_tools":[],"qualifies_clean":true,"hosted_ci_detected":false,"virtual_machine_detected":true,"manufacturer":"synthetic","model":"synthetic"});
+        cr["environment"] = json!({"os_caption":"Windows 11 test","os_build":"26100","os_version":"10.0.26100","os_architecture":"64-bit","os_native_architecture":"AMD64","product_type":1,"process_64_bit":true,"developer_tools":[],"qualifies_clean":true,"hosted_ci_detected":false,"virtual_machine_detected":true,"manufacturer":"synthetic","model":"synthetic"});
         cr["vm_provenance_file"] = "vm-provenance.json".into();
         cr["vm_provenance_sha256"] = hash(&fs::read(c.join("vm-provenance.json")).unwrap()).into();
         cr["clean_recipient_vm_attested"] = true.into();
@@ -634,4 +635,112 @@ fn symlink_evidence_ancestor_rejected() {
         validate("validate-phase2-evidence", &alias, Some(&f.trusted)).status,
         Status::Fail
     );
+}
+#[test]
+fn fast_mean_cannot_hide_slow_p95_without_degradation() {
+    let f = Fixture::new();
+    f.raw_mutate(|events| events[1]["interval_p95_ms"] = 50.into());
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn high_p95_automatic_static_fallback_is_honestly_accepted() {
+    let f = Fixture::new();
+    f.raw_mutate(|events| {
+        events[1]["interval_p95_ms"] = 50.into();
+        events[1]["next_mode"] = "static".into();
+        for sample in &mut events[2..=3] {
+            sample["mode"] = "static".into();
+            sample["next_mode"] = "static".into();
+        }
+    });
+    assert_eq!(f.status(), Status::Pass);
+}
+#[test]
+fn moderate_p95_requires_and_accepts_reduced_fallback() {
+    let f = Fixture::new();
+    f.raw_mutate(|events| {
+        events[1]["interval_p95_ms"] = 20.into();
+        events[1]["next_mode"] = "reduced".into();
+        for sample in &mut events[2..=3] {
+            sample["mode"] = "reduced".into();
+            sample["next_mode"] = "reduced".into();
+        }
+    });
+    assert_eq!(f.status(), Status::Pass);
+}
+#[test]
+fn standalone_complete_machine_evidence_is_not_a_trust_anchor() {
+    let f = Fixture::new();
+    assert_eq!(
+        validate("validate-spike-d", &f.root.join("d"), None).status,
+        Status::Pending
+    );
+    assert_eq!(
+        validate("validate-spike-c", &f.root.join("c"), None).status,
+        Status::Pending
+    );
+}
+#[test]
+fn contradictory_selection_and_exclusion_fails() {
+    let f = Fixture::new();
+    let mut selection = doc("afterglow-spike-d-matrix-selection");
+    selection["selections"] = (0..54)
+        .map(|i| json!({"cell_path":format!("cells/{i}/cell.json")}))
+        .collect::<Vec<_>>()
+        .into();
+    selection["exclusions"] = json!([{"cell_path":"cells/0/cell.json","reason":"This cannot both be selected and excluded"}]);
+    write(&f.root, "d/matrix-selection.json", &selection);
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn exclusion_without_reviewed_reason_fails() {
+    let f = Fixture::new();
+    let mut selection = doc("afterglow-spike-d-matrix-selection");
+    selection["selections"] = (1..54)
+        .map(|i| json!({"cell_path":format!("cells/{i}/cell.json")}))
+        .collect::<Vec<_>>()
+        .into();
+    selection["exclusions"] = json!([{"cell_path":"cells/0/cell.json","reason":" "}]);
+    write(&f.root, "d/matrix-selection.json", &selection);
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn arm64_emulation_cannot_qualify_as_clean_x64() {
+    let f = Fixture::new();
+    f.mutate("c/spike-c-clean-vm-result.json", |v| {
+        v["environment"]["os_native_architecture"] = "ARM64".into()
+    });
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn windows_other_than_10_11_client_rejected() {
+    let f = Fixture::new();
+    f.mutate("c/spike-c-clean-vm-result.json", |v| {
+        v["environment"]["os_caption"] = "Windows 12 Client".into()
+    });
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn truncated_png_is_rejected_even_with_matching_report_hash() {
+    let f = Fixture::new();
+    let path = f.root.join("c/shell-icon.png");
+    let mut bytes = fs::read(&path).unwrap();
+    bytes.truncate(bytes.len() - 5);
+    fs::write(path, &bytes).unwrap();
+    f.mutate("c/spike-c-clean-vm-result.json", |v| {
+        v["shell_icon_sha256"] = hash(&bytes).into()
+    });
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn corrupt_png_crc_is_rejected_even_with_matching_report_hash() {
+    let f = Fixture::new();
+    let path = f.root.join("c/shell-icon.png");
+    let mut bytes = fs::read(&path).unwrap();
+    bytes[50] ^= 1;
+    fs::write(path, &bytes).unwrap();
+    f.mutate("c/spike-c-clean-vm-result.json", |v| {
+        v["shell_icon_sha256"] = hash(&bytes).into()
+    });
+    assert_eq!(f.status(), Status::Fail);
 }

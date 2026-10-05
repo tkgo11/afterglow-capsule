@@ -49,6 +49,11 @@ and completed human foreground/input observations. Synthetic input receipts and
 CPU acknowledgement/submission timings do not prove human perceived response.
 The 54-cell matrix must contain 27 integrated and 27 discrete cells.
 
+Quality reduction uses the larger of mean and p95 presentation intervals:
+Full becomes Reduced above 16.7 ms; Full/Reduced becomes Static above 25 ms.
+Static and explicitly Opaque modes remain unchanged. A fast mean with a slow
+p95 cannot be accepted as stable full-quality cadence.
+
 Repeated attempts are never implicitly resolved by timestamp. Without a
 selection document, repeated coordinates remain unresolved. A reviewed
 `matrix-selection.json` (`afterglow-spike-d-matrix-selection`, version 2) may

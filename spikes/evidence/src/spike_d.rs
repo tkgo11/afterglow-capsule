@@ -190,8 +190,10 @@ fn raw(root: &Path, cell: &Value) -> Result<()> {
             return Err("mode progression does not match automatic degradation policy".into());
         }
         let avg = timing(sample, "interval_avg_ms", true)?;
-        timing(sample, "interval_p95_ms", true)?;
-        let expected_next = next_mode(&mode, avg)?;
+        let p95 = timing(sample, "interval_p95_ms", true)?;
+        // A fast mean cannot hide unstable frame cadence in the upper tail.
+        // This mirrors the conservative policy in the physical probe/collector.
+        let expected_next = next_mode(&mode, avg.max(p95))?;
         if text(sample, "next_mode")? != expected_next {
             return Err("slow frames did not follow automatic degradation policy".into());
         }
