@@ -1,4 +1,7 @@
 /target/
+/fuzz/target/
+/fuzz/artifacts/
+/fuzz/corpus/
 /node_modules/
 /packages/builder-ui/node_modules/
 /packages/builder-ui/dist/

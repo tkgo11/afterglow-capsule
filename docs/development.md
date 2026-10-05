@@ -1,7 +1,7 @@
 # Development
 
-The repository now has the Phase 0 foundation. Product implementation begins in
-Phase 1; follow SPEC.md in order. Neither binary scaffold is a working application.
+The repository has the Phase 0 foundation and Phase 1 format/schema core.
+Follow SPEC.md in order. Neither binary scaffold is a working application.
 
 ## Toolchains
 
@@ -23,9 +23,11 @@ npm run format:check
 npm run check
 npm run lint
 npm run build
+cargo check --manifest-path fuzz/Cargo.toml --locked --bins
+cargo fmt --manifest-path fuzz/Cargo.toml --all -- --check
 ```
 
-These commands cover the Phase 0 exit requirements. Plain `cargo test` also runs
+These commands cover the Phase 0/1 checks. Plain `cargo test` also runs
 the workspace. `npm test` runs the Builder frontend tests in non-watch mode.
 CI executes the same checks on Ubuntu and Windows x64. Local Linux checks do not
 establish Windows spike acceptance; consult the actual Windows CI run.
@@ -38,12 +40,17 @@ documents are excluded from Prettier to preserve canonical requirements.
 development. The native Builder/Viewer entry points currently explain their
 unavailability and exit with failure; there is no production release path.
 
-## Boundaries and next work
+## Boundaries and phase gates
 
 `apps/builder` and `packages/builder-ui` are creator-side only. `apps/viewer` is
 recipient-side only. `viewer-runtime/template` holds pinned metadata for the future
 Windows runtime template, not a generated EXE. Crate responsibilities are described
 in their module documentation.
+
+`ag-schema`, `ag-project` and `ag-capsule` now provide versioned models, metadata
+validation and bounded header parsing. Their READMEs document the exact formats.
+The four runnable parser fuzz harnesses are described in `fuzz/README.md`.
+Compilation is checked in CI; instrumented fuzzing requires cargo-fuzz/nightly.
 
 The test directories reserve the required subsystem matrices. Implement real tests
 alongside each feature; scaffolds are not a claim of completed security coverage.

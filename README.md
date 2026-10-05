@@ -66,11 +66,12 @@ See [SECURITY.md](SECURITY.md) and [SPEC.md](SPEC.md).
 
 ## Project status
 
-**Pre-alpha / Phase 0 bootstrap.**
+**Pre-alpha / Phase 1 format and schema core.**
 
 The repository includes the Rust workspace, subsystem and application scaffolds,
-Builder frontend test harness, and Linux/Windows CI. Product implementation begins
-in Phase 1; the scaffolds cannot build or open archives.
+Builder frontend test harness, and Linux/Windows CI. Phase 1 adds versioned generic
+schema/project models, public manifest and object metadata, bounded capsule header
+parsing, and parser fuzz harnesses. The application scaffolds cannot build or open archives.
 
 See [docs/development.md](docs/development.md) for toolchains and validation commands
 and [docs/decisions/](docs/decisions/README.md) for decisions and mandatory spike status.
