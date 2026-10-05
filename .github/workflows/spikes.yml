@@ -1,0 +1,82 @@
+name: Mandatory spike evidence (partial)
+
+# Partial evidence collection. Passing this workflow does NOT close Phase 2:
+# physical GPU, clean VM, visual shell and provider review evidence remain mandatory.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-timelock:
+    name: Historical Go-Rust interoperability (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: rustup show
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python spikes/timelock/build_and_check.py
+      - run: python spikes/timelock/test_live_inputs.py
+      - run: cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-spike-b
+      - run: cargo fmt --manifest-path spikes/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path spikes/Cargo.toml --locked --all-targets -- -D warnings
+      - run: cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-spike-d
+
+  live-windows:
+    name: Real future-round timelock and independent NTS candidates (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: rustup show
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python spikes/timelock/build_and_check.py
+      - name: Future ciphertext, pre-round rejection, exact verified after-round decryption
+        run: python spikes/run_live.py timelock
+      - name: Two independent NTS operator candidates
+        if: ${{ !cancelled() }}
+        run: python spikes/run_live.py nts
+
+  pe-signing:
+    name: Windows PE resource/signing experiment
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: rustup show
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python spikes/pe/test_fixtures.py
+      - name: Resource insertion, readback, signing and negative mutation
+        shell: pwsh
+        run: |
+          $SdkTools = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending
+          if (-not $SdkTools) { throw "Windows SDK SignTool is missing" }
+          ./spikes/pe/run_spike.ps1 -SignTool $SdkTools[0].FullName

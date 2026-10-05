@@ -66,12 +66,17 @@ See [SECURITY.md](SECURITY.md) and [SPEC.md](SPEC.md).
 
 ## Project status
 
-**Pre-alpha / Phase 1 format and schema core.**
+**Pre-alpha / Phase 1 core implemented; Phase 2 mandatory spikes in progress.**
 
 The repository includes the Rust workspace, subsystem and application scaffolds,
 Builder frontend test harness, and Linux/Windows CI. Phase 1 adds versioned generic
 schema/project models, public manifest and object metadata, bounded capsule header
 parsing, and parser fuzz harnesses. The application scaffolds cannot build or open archives.
+
+Isolated Go/Rust timelock, NTS, Windows PE/signing and glass probes live under
+`spikes/`. Historical interoperability and local failure/format/shader tests pass;
+live release, native Windows and reference GPU acceptance evidence is still
+required. Phase 2 remains blocked and production Phases 3–12 have not begun.
 
 See [docs/development.md](docs/development.md) for toolchains and validation commands
 and [docs/decisions/](docs/decisions/README.md) for decisions and mandatory spike status.

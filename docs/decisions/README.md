@@ -10,11 +10,14 @@ Each spike result must record dependency versions, commands, environment, positi
 and negative evidence, acceptance criteria, and unresolved blockers. Scheduling a
 CI job is not evidence that it passed.
 
-| Gate                          | Phase 0 status                               | Required evidence                                                                         |
-| ----------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| A — Timelock interoperability | Not started; production integration blocked  | Go ↔ Rust, rejection cases, Windows x64                                                   |
-| B — Windows NTS               | Not started; platform assumption unvalidated | Two independent operators, authentication, RTT, certificate and failure cases, Windows    |
-| C — PE resources/signing      | Not started; production packaging blocked    | Injection/readback, icon/version, signing, post-sign mutation rejection, clean Windows VM |
-| D — Temporal Glass            | Not started; GPU assumption unvalidated      | Hardware, resolution/DPI, responsiveness and fallback matrix                              |
+| Gate                                      | Current status                                              | Outstanding evidence                                                        |
+| ----------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [A — Timelock](spike-a-timelock.md)       | BLOCKED; historical differential/rejection tests passed     | Real future-round after-release interoperability; Windows x64               |
+| [B — Windows NTS](spike-b-nts.md)         | BLOCKED; real local TLS failure tests passed                | Two live authenticated independent providers, RTT, Windows, provider review |
+| [C — PE resources/signing](spike-c-pe.md) | BLOCKED; Windows API cross-check and fixtures passed        | Native injection/readback/signing/mutation; shell icon; clean recipient VM  |
+| [D — Temporal Glass](spike-d-glass.md)    | BLOCKED; shader/policy tests and Windows cross-check passed | Integrated/discrete GPU resolution/DPI/effect/interaction matrix            |
 
-Phase 1 is the next implementation phase. No spike has been completed by bootstrap.
+Phases 0 and 1 are locally implemented and tested. Phase 2 is in progress; no
+mandatory spike has met its full acceptance criterion. SPEC.md §148 says:
+"Do not proceed to production crypto integration until blockers are resolved."
+Production Phases 3–12 remain pending. Scheduling CI is not a passing result.
