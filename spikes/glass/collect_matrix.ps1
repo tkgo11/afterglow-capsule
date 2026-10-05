@@ -55,11 +55,12 @@ foreach ($Size in @(@(960, 640), @(1440, 900), @(1920, 1080))) {
         $ExitCode = -1
         $Process = $null
         $TransportFailure = $null
+        $AbortSession = $false
         try {
             $Process = Start-Process -FilePath $Exe -ArgumentList $Arguments -PassThru -NoNewWindow -RedirectStandardOutput $Raw -RedirectStandardError $Stderr
             if (-not $Process.WaitForExit(140000)) {
                 $Process.Kill()
-                $Process.WaitForExit()
+                if (-not $Process.WaitForExit(5000)) { $AbortSession = $true; throw 'Terminated probe failed to exit within the bounded cleanup deadline' }
                 $TransportFailure = 'collector bounded timeout: probe was terminated'
             }
             $ExitCode = $Process.ExitCode
@@ -102,6 +103,7 @@ foreach ($Size in @(@(960, 640), @(1440, 900), @(1920, 1080))) {
         Write-SpikeDJson $Cell (Join-Path $Directory 'cell.json')
         $Cells += @{ cell_path = "cells/$CellId/cell.json"; machine_status = $Cell.machine_status; failures = $Failures }
         Write-Host "Machine status: $($Cell.machine_status); human gate: pending unless expressly observed. Evidence: $Directory"
+        if ($AbortSession) { throw "Collection stopped after bounded process cleanup failed. The failed cell and raw logs were preserved in $Directory" }
     }
 }
 $Session = @{

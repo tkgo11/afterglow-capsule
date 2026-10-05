@@ -72,4 +72,11 @@ $Fixture = New-SyntheticProtocolFixture; $Fixture[1].event_to_present_count = 18
 $Fixture = New-SyntheticProtocolFixture; $Fixture[1].input_ack_count = 181; Assert-Rejected $Fixture 'input acknowledgment accounting mismatch'
 $Fixture = New-SyntheticProtocolFixture; $Fixture[1].mode = 'opaque'; Assert-Rejected $Fixture 'effect mode differs from requested cell'
 $Fixture = New-SyntheticProtocolFixture; $Fixture[1].next_mode = 'reduced'; Assert-Rejected $Fixture 'next sample hides mode transition'
+$Fixture = New-SyntheticProtocolFixture; $Fixture += @{format_name='afterglow-spike-d-event';format_version=2;minimum_reader_version=2;event='unknown'}; Assert-Rejected $Fixture 'unknown event kind'
+$Fixture = New-SyntheticProtocolFixture; $Fixture = @($Fixture[1], $Fixture[0], $Fixture[2], $Fixture[3], $Fixture[4]); Assert-Rejected $Fixture 'sample before start'
+$Fixture = New-SyntheticProtocolFixture; $Fixture = @($Fixture[0], $Fixture[1], $Fixture[2], $Fixture[4], $Fixture[3]); Assert-Rejected $Fixture 'sample after complete'
+$Fixture = New-SyntheticProtocolFixture; $Fixture[1].pointer_events = 90.5; Assert-Rejected $Fixture 'fractional received event counter'
+$RunnerSource = Get-Content -Raw (Join-Path $PSScriptRoot 'run_all_gpu_validation.ps1')
+if ($RunnerSource -notmatch "event -eq 'adapter_inventory'") { throw 'Adapter inventory event protocol differs from the Rust probe' }
+$Tests++
 Write-Output "$Tests pure collector protocol tests passed. No physical evidence was generated."

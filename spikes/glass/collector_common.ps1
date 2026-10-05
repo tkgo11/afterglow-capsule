@@ -14,12 +14,27 @@ function Test-SpikeDFiniteNumber {
     try { $Number = [double]$Value } catch { return $false }
     return -not [double]::IsNaN($Number) -and -not [double]::IsInfinity($Number) -and (($Number -gt 0) -or ($AllowZero -and $Number -eq 0))
 }
+function Test-SpikeDCount {
+    param($Value, [switch]$AllowZero)
+    return (Test-SpikeDFiniteNumber $Value -AllowZero:$AllowZero) -and ([math]::Floor([double]$Value) -eq [double]$Value)
+}
 function Test-SpikeDProtocol {
     param([object[]]$Records, [string]$GpuClass, [int]$DpiPercent, [int]$Width, [int]$Height, [string]$Mode, [int]$ExitCode)
     $Failures = New-Object 'Collections.Generic.List[string]'
     $ExpectedType = if ($GpuClass -eq 'integrated') { 'IntegratedGpu' } else { 'DiscreteGpu' }
     if ($ExitCode -ne 0) { $Failures.Add("probe exit code $ExitCode") }
+    $State = 'before-start'
+    $InventorySeen = $false
     foreach ($Record in $Records) {
+        $Event = Get-SpikeDField $Record 'event'
+        switch ($Event) {
+            'adapter_inventory' { if ($State -ne 'before-start' -or $InventorySeen) { $Failures.Add('adapter inventory order invalid') }; $InventorySeen = $true }
+            'start' { if ($State -ne 'before-start') { $Failures.Add('start event order invalid') }; $State = 'sampling' }
+            'sample' { if ($State -ne 'sampling') { $Failures.Add('sample event order invalid') } }
+            'complete' { if ($State -ne 'sampling') { $Failures.Add('complete event order invalid') }; $State = 'complete' }
+            'failure' { }
+            default { $Failures.Add('unknown event kind') }
+        }
         if ((Get-SpikeDField $Record 'format_name') -ne 'afterglow-spike-d-event' -or (Get-SpikeDField $Record 'format_version') -ne 2 -or (Get-SpikeDField $Record 'minimum_reader_version') -ne 2) { $Failures.Add('unsupported or missing event protocol version') }
         if ((Get-SpikeDField $Record 'event') -eq 'failure') { $Failures.Add('probe emitted failure: ' + ($Record | ConvertTo-Json -Compress -Depth 10)) }
     }
@@ -41,8 +56,8 @@ function Test-SpikeDProtocol {
     $Measured = @($Start) + $Samples
     foreach ($Record in $Measured) {
         if ((Get-SpikeDField $Record 'native_dpi') -ne ($DpiPercent * 96 / 100) -or (Get-SpikeDField $Record 'dpi_awareness') -ne 'PerMonitorAware') { $Failures.Add('native DPI or per-monitor DPI-awareness mismatch') }
-        if ((Get-SpikeDField $Record 'actual_dpi_percent') -ne $DpiPercent) { $Failures.Add('actual DPI does not match requested DPI') }
-        if ((Get-SpikeDField $Record 'width') -ne $Width -or (Get-SpikeDField $Record 'height') -ne $Height) { $Failures.Add('actual client dimensions do not match requested resolution') }
+        if (-not (Test-SpikeDFiniteNumber (Get-SpikeDField $Record 'actual_dpi_percent')) -or (Get-SpikeDField $Record 'actual_dpi_percent') -ne $DpiPercent) { $Failures.Add('actual DPI does not match requested DPI') }
+        if (-not (Test-SpikeDCount (Get-SpikeDField $Record 'width')) -or -not (Test-SpikeDCount (Get-SpikeDField $Record 'height')) -or (Get-SpikeDField $Record 'width') -ne $Width -or (Get-SpikeDField $Record 'height') -ne $Height) { $Failures.Add('actual client dimensions do not match requested resolution') }
     }
     if ((Get-SpikeDField $Start 'requested_mode') -ne $Mode) { $Failures.Add('requested effect mode mismatch') }
     $Index = 1
@@ -55,9 +70,9 @@ function Test-SpikeDProtocol {
             if (-not (Test-SpikeDFiniteNumber (Get-SpikeDField $Sample $Field) -AllowZero:($Field -like '*ack*' -or $Field -like 'event_to_present*'))) { $Failures.Add("missing or invalid timing: $Field") }
         }
         foreach ($Field in @('pointer_events', 'input_ack_count', 'event_to_present_count')) {
-            if (-not (Test-SpikeDFiniteNumber (Get-SpikeDField $Sample $Field))) { $Failures.Add("received/acknowledged input required in every window: $Field") }
+            if (-not (Test-SpikeDCount (Get-SpikeDField $Sample $Field))) { $Failures.Add("received/acknowledged input required in every window: $Field") }
         }
-        if (-not (Test-SpikeDFiniteNumber (Get-SpikeDField $Sample 'keyboard_events'))) { $Failures.Add('keyboard event counter missing or invalid') }
+        if (-not (Test-SpikeDCount (Get-SpikeDField $Sample 'keyboard_events'))) { $Failures.Add('keyboard event counter missing or invalid') }
         if ((Get-SpikeDField $Sample 'event_to_present_count') -ne ((Get-SpikeDField $Sample 'pointer_events') + (Get-SpikeDField $Sample 'keyboard_events'))) { $Failures.Add('input-to-presentation count does not match actual received events') }
         if ((Get-SpikeDField $Sample 'input_ack_count') -gt ((Get-SpikeDField $Sample 'pointer_events') + (Get-SpikeDField $Sample 'keyboard_events'))) { $Failures.Add('input acknowledgments exceed actual received events') }
         $ActualMode = Get-SpikeDField $Sample 'mode'

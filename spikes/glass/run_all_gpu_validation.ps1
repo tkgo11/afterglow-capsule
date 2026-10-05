@@ -16,6 +16,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'collector_common.ps1')
+try {
 if ($env:OS -ne 'Windows_NT' -or -not [Environment]::Is64BitOperatingSystem) { throw 'Physical Windows x64 required' }
 $Exe = Join-Path $ArtifactDirectory 'SpikeD-Glass.exe'
 $Expected = Get-Content -Raw (Join-Path $ArtifactDirectory 'spike-d-expected.json') | ConvertFrom-Json
@@ -31,11 +32,11 @@ $Raw = Join-Path $InventoryDirectory 'adapters.jsonl'
 $Stderr = Join-Path $InventoryDirectory 'stderr.log'
 $Process = Start-Process -FilePath $Exe -ArgumentList '--list-adapters' -NoNewWindow -PassThru -RedirectStandardOutput $Raw -RedirectStandardError $Stderr
 try {
-    if (-not $Process.WaitForExit(30000)) { $Process.Kill(); $Process.WaitForExit(); throw 'Adapter inventory timed out' }
+    if (-not $Process.WaitForExit(30000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Inventory termination cleanup timed out' }; throw 'Adapter inventory timed out' }
     if ($Process.ExitCode -ne 0) { throw "Adapter inventory failed; inspect $InventoryDirectory" }
 } finally { $Process.Dispose() }
 $Records = @(Read-SpikeDRecords $Raw)
-$Inventories = @($Records | Where-Object { $_.format_name -eq 'afterglow-spike-d-event' -and $_.format_version -eq 2 -and $_.minimum_reader_version -eq 2 -and $_.event -eq 'inventory' })
+$Inventories = @($Records | Where-Object { $_.format_name -eq 'afterglow-spike-d-event' -and $_.format_version -eq 2 -and $_.minimum_reader_version -eq 2 -and $_.event -eq 'adapter_inventory' })
 if ($Inventories.Count -ne 1) { throw 'Exactly one version 2 adapter inventory required' }
 $Integrated = @($Inventories[0].adapters | Where-Object { $_.device_type -eq 'IntegratedGpu' })
 $Discrete = @($Inventories[0].adapters | Where-Object { $_.device_type -eq 'DiscreteGpu' })
@@ -74,10 +75,23 @@ $SummaryPath = Join-Path $OutputDirectory ('validation-' + [guid]::NewGuid().ToS
 $SummaryError = $SummaryPath + '.stderr.log'
 $Process = Start-Process -FilePath $Validator -ArgumentList @('validate-spike-d', ('"' + $OutputDirectory + '"')) -NoNewWindow -PassThru -RedirectStandardOutput $SummaryPath -RedirectStandardError $SummaryError
 try {
-    if (-not $Process.WaitForExit(60000)) { $Process.Kill(); $Process.WaitForExit(); throw 'Strict evidence validator timed out' }
+    if (-not $Process.WaitForExit(60000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Validator termination cleanup timed out' }; throw 'Strict evidence validator timed out' }
     $Code = $Process.ExitCode
 } finally { $Process.Dispose() }
 Get-Content -Raw $SummaryPath | Write-Output
 Write-Host "Strict validator exit code $Code (0 PASS, 1 FAIL, 2 PENDING). Raw logs, failed attempts and null human observations are preserved in $OutputDirectory."
 if ($Code -notin @(0, 1, 2)) { throw "Evidence validator could not run: exit $Code" }
 exit $Code
+
+} catch {
+    $Failure = @{
+        format_name = 'afterglow-spike-d-collection-error'; format_version = 2; minimum_reader_version = 2;
+        status = 'FAIL'; reason = $_.Exception.Message; captured_utc = [DateTime]::UtcNow.ToString('o')
+    }
+    New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+    $FailurePath = Join-Path $OutputDirectory ('collection-failure-' + [guid]::NewGuid().ToString() + '.json')
+    Write-SpikeDJson $Failure $FailurePath
+    $Failure | ConvertTo-Json -Depth 5 | Write-Output
+    Write-Warning "Collection stopped safely. Failure evidence: $FailurePath"
+    exit 1
+}
