@@ -4,6 +4,10 @@ param([Parameter(Mandatory=$true)][string]$SignTool)
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 if (-not $IsWindows) { throw "Native Windows is required (PowerShell 7)." }
+$Principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $Principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    throw "Run this isolated signing experiment as Administrator on a disposable VM."
+}
 $Repo = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $Scratch = Join-Path ([IO.Path]::GetTempPath()) ("afterglow-spike-c-" + [guid]::NewGuid())
 $Cert = $null
@@ -56,10 +60,11 @@ try {
     $Cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=AFTERGLOW disposable Spike C" -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy NonExportable
     $PublicCert = Join-Path $Scratch "signer.cer"
     Export-Certificate -Cert $Cert -FilePath $PublicCert | Out-Null
-    # Use Windows' unattended import for this disposable public certificate.
-    # Interactive root-store UI cannot be serviced on a hosted CI desktop.
-    $RootPath = "Cert:\CurrentUser\Root\$($Cert.Thumbprint)"
-    Run-Native "certutil" @("-user", "-f", "-addstore", "Root", $PublicCert)
+    # CurrentUser root import displays protected-root UI even with certutil -f.
+    # On a disposable elevated VM, LocalMachine import is unattended. Only this
+    # ephemeral public test certificate is installed and removed in finally.
+    $RootPath = "Cert:\LocalMachine\Root\$($Cert.Thumbprint)"
+    Run-Native "certutil" @("-f", "-addstore", "Root", $PublicCert)
     Write-Output "Signing and verifying the copied test EXE."
     Run-Native $SignTool @("sign", "/fd", "SHA256", "/s", "My", "/sha1", $Cert.Thumbprint, $Exe)
     Run-Native $SignTool @("verify", "/pa", "/v", $Exe)

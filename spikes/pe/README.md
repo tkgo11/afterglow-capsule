@@ -4,7 +4,7 @@ The separate injector copies public fixture resources into a copied template.
 The template only reads its own resources through native Windows APIs. They are
 isolated experiments; neither is a production Builder or Viewer dependency.
 
-Run on a disposable native Windows x64 environment with PowerShell 7, Rust,
+Run as Administrator on a disposable native Windows x64 environment with PowerShell 7, Rust,
 Python and Windows SDK SignTool:
 
 ```powershell
@@ -18,8 +18,10 @@ signs, verifies, and reads the resources again. An isolated negative artifact is
 then mutated after signing and must fail signature verification. Test certificates,
 keys and files are removed in `finally`; no final EXE is distributed by the script.
 
-The test installs its disposable public signing certificate in the user's root
-store for the experiment. Use a disposable VM and ensure cleanup succeeded before
+The test installs its disposable public signing certificate in the VM's machine root
+store for the experiment; its nonexportable signing key stays in CurrentUser/My.
+CurrentUser root import displayed protected-root UI and stalled hosted CI, so the
+experiment uses an elevated unattended machine import. Use a disposable VM and ensure cleanup succeeded before
 reusing it. No production signing/trust setup is selected by this experiment.
 
 The two pure Python fixture tests and Windows x64 Rust API cross-check passed on
