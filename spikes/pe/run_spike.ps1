@@ -56,7 +56,9 @@ try {
     $Cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=AFTERGLOW disposable Spike C" -CertStoreLocation "Cert:\CurrentUser\My" -KeyExportPolicy NonExportable
     $PublicCert = Join-Path $Scratch "signer.cer"
     Export-Certificate -Cert $Cert -FilePath $PublicCert | Out-Null
-    Import-Certificate -FilePath $PublicCert -CertStoreLocation "Cert:\CurrentUser\Root" | Out-Null
+    # Use Windows' unattended import for this disposable public certificate.
+    # Interactive root-store UI cannot be serviced on a hosted CI desktop.
+    Run-Native "certutil" @("-user", "-f", "-addstore", "Root", $PublicCert)
     $RootPath = "Cert:\CurrentUser\Root\$($Cert.Thumbprint)"
     Write-Output "Signing and verifying the copied test EXE."
     Run-Native $SignTool @("sign", "/fd", "SHA256", "/s", "My", "/sha1", $Cert.Thumbprint, $Exe)

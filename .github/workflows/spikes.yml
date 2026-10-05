@@ -78,6 +78,7 @@ jobs:
           python-version: "3.12"
       - run: python spikes/pe/test_fixtures.py
       - name: Resource insertion, readback, signing and negative mutation
+        timeout-minutes: 5
         shell: pwsh
         run: |
           $SdkTools = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending
