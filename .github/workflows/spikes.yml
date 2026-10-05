@@ -1,7 +1,7 @@
 name: Mandatory spike evidence (partial)
 
 # Partial evidence collection. Passing this workflow does NOT close Phase 2:
-# physical GPU, clean VM, visual shell and provider review evidence remain mandatory.
+# Physical GPU, clean recipient VM and visual shell evidence remain mandatory.
 on:
   push:
   pull_request:
@@ -77,10 +77,58 @@ jobs:
         with:
           python-version: "3.12"
       - run: python spikes/pe/test_fixtures.py
-      - name: Resource insertion, readback, signing and negative mutation
+      - name: Resource replacement, readback, signing and negative mutation
         timeout-minutes: 5
         shell: pwsh
         run: |
           $SdkTools = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending
           if (-not $SdkTools) { throw "Windows SDK SignTool is missing" }
-          ./spikes/pe/run_spike.ps1 -SignTool $SdkTools[0].FullName
+          ./spikes/pe/run_spike.ps1 -SignTool $SdkTools[0].FullName -EvidenceDirectory (Join-Path $env:GITHUB_WORKSPACE "spikes/target/manual-evidence")
+      - name: Check recipient collector on Windows PowerShell 5.1
+        shell: pwsh
+        run: |
+          $Evidence = Join-Path $env:GITHUB_WORKSPACE "spikes/target/manual-evidence"
+          Copy-Item spikes/pe/check_clean_vm.ps1 $Evidence
+          Copy-Item spikes/manual/README.md $Evidence
+          & powershell.exe -NoProfile -NonInteractive -File "$Evidence/check_clean_vm.ps1" -ArtifactDirectory $Evidence -Report "$Evidence/ci-collector-smoke.json"
+          if ($LASTEXITCODE -ne 0) { throw "Recipient collector smoke check failed" }
+          $Observed = Get-Content -Raw "$Evidence/ci-collector-smoke.json" | ConvertFrom-Json
+          if ($Observed.clean_recipient_vm_attested -or $Observed.shell_icon_visible_attested) { throw "Hosted CI must not attest to manual acceptance" }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: phase-2-clean-vm-evidence
+          path: spikes/target/manual-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  gpu-probe-artifact:
+    name: Build physical GPU manual probe (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: rustup show
+      - run: cargo build --manifest-path spikes/Cargo.toml --locked --release -p afterglow-spike-d
+      - name: Prepare public probe and parse collector with PowerShell 5.1
+        shell: pwsh
+        run: |
+          $Evidence = Join-Path $env:GITHUB_WORKSPACE "spikes/target/gpu-evidence"
+          New-Item -ItemType Directory $Evidence | Out-Null
+          Copy-Item spikes/target/release/afterglow-spike-d.exe "$Evidence/SpikeD-Glass.exe"
+          Copy-Item spikes/glass/collect_matrix.ps1 $Evidence
+          Copy-Item spikes/manual/README.md $Evidence
+          @{
+            format_name = "afterglow-spike-d-evidence"; format_version = 1; minimum_reader_version = 1;
+            exe_sha256 = (Get-FileHash -Algorithm SHA256 "$Evidence/SpikeD-Glass.exe").Hash;
+            windows = [Environment]::OSVersion.VersionString
+          } | ConvertTo-Json | Set-Content -Encoding utf8 "$Evidence/spike-d-expected.json"
+          & powershell.exe -NoProfile -NonInteractive -Command '$Errors = $null; $Tokens = $null; [Management.Automation.Language.Parser]::ParseFile("spikes/glass/collect_matrix.ps1", [ref]$Tokens, [ref]$Errors) | Out-Null; if ($Errors.Count) { $Errors | Out-String | Write-Error; exit 1 }'
+          if ($LASTEXITCODE -ne 0) { throw "PowerShell 5.1 collector syntax failed" }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: phase-2-gpu-probe
+          path: spikes/target/gpu-evidence/
+          if-no-files-found: error
+          retention-days: 14
