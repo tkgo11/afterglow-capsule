@@ -52,6 +52,10 @@ if ($SelfTest) {
             $Parameters = @($Command.CommandElements | Where-Object { $_ -is [Management.Automation.Language.CommandParameterAst] } | ForEach-Object { $_.ParameterName })
             if ($Parameters -notcontains 'Id' -and $Parameters -notcontains 'Name') { throw 'Firmware diagnostic must not enumerate or mutate arbitrary existing VMs.' }
         }
+        if ($CommandName -eq 'Get-CimInstance') {
+            $Parameters = @($Command.CommandElements | Where-Object { $_ -is [Management.Automation.Language.CommandParameterAst] } | ForEach-Object { $_.ParameterName })
+            if ($Parameters -notcontains 'Namespace' -or $Parameters -notcontains 'ClassName' -or $Parameters -notcontains 'Filter' -or $Parameters -notcontains 'ErrorAction') { throw 'Registration verification must be a scoped, strict CIM query.' }
+        }
     }
     $TestId = [guid]::NewGuid()
     $Name = 'afterglow-firmware-' + $TestId.ToString('N')
@@ -92,7 +96,10 @@ if (Test-Path -LiteralPath $Report) { throw 'Report already exists; supply a new
 try {
     Import-Module Hyper-V -ErrorAction Stop
     if (Test-Path -LiteralPath $Scratch) { throw 'GUID scratch path already exists; refusing to reuse it.' }
-    if (Hyper-V\Get-VM -Name $Name -ErrorAction SilentlyContinue) { throw 'GUID VM name already exists; refusing to use it.' }
+    # A strict CIM query returns an empty set for absence. Get-VM with
+    # SilentlyContinue cannot distinguish absence from a service/access failure.
+    $Existing = @(Get-CimInstance -Namespace root/virtualization/v2 -ClassName Msvm_ComputerSystem -Filter ("ElementName='{0}'" -f $Name) -ErrorAction Stop)
+    if ($Existing.Count -ne 0) { throw 'GUID VM name already exists; refusing to use it.' }
     New-Item -ItemType Directory -Path $Scratch | Out-Null
     $Created = $true
     $Vm = Hyper-V\New-VM -Name $Name -Generation 2 -MemoryStartupBytes 512MB -NoVHD -Path $Scratch -ErrorAction Stop
@@ -140,8 +147,11 @@ finally {
     # name inside our newly created scratch tree; never touch a preexisting VM.
     if ($Created -and $OwnedId -eq [guid]::Empty) {
         try {
-            $Partial = Hyper-V\Get-VM -Name $Name -ErrorAction SilentlyContinue
-            if ($Partial) {
+            $Registrations = @(Get-CimInstance -Namespace root/virtualization/v2 -ClassName Msvm_ComputerSystem -Filter ("ElementName='{0}'" -f $Name) -ErrorAction Stop)
+            if ($Registrations.Count -gt 1) { throw 'Multiple partial registrations match the unique owned name; cleanup refused.' }
+            if ($Registrations.Count -eq 1) {
+                $PartialId = [guid]$Registrations[0].Name
+                $Partial = Hyper-V\Get-VM -Id $PartialId -ErrorAction Stop
                 if (-not (Test-OwnedNestedVm $Partial ([guid]$Partial.Id) $Name $Scratch)) { throw 'Partial registration ownership could not be verified.' }
                 $OwnedId = [guid]$Partial.Id
                 $Result.vm_id = $OwnedId.ToString()
@@ -168,7 +178,8 @@ finally {
             if (-not (Wait-Job -Job $OperationJob -Timeout 45)) { throw 'Owned VM stop/removal exceeded the 45-second cleanup bound.' }
             Receive-Job -Job $OperationJob -ErrorAction Stop | Out-Null
             if ($OperationJob.State -ne 'Completed') { throw 'Owned VM cleanup job did not complete successfully.' }
-            if (Hyper-V\Get-VM -Id $OwnedId -ErrorAction SilentlyContinue) { throw 'Owned VM registration still exists after removal.' }
+            $Remaining = @(Get-CimInstance -Namespace root/virtualization/v2 -ClassName Msvm_ComputerSystem -Filter ("Name='{0}'" -f $OwnedId.ToString()) -ErrorAction Stop)
+            if ($Remaining.Count -ne 0) { throw 'Owned VM registration still exists after removal.' }
         } catch { $CleanupProblems.Add('Owned VM cleanup: ' + $_.Exception.Message) }
         finally {
             if ($OperationJob) {
