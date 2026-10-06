@@ -1,0 +1,40 @@
+name: Clean Windows cloud feasibility (diagnostic only)
+
+# Diagnostics are not recipient acceptance evidence and cannot close Spike C.
+on:
+  push:
+    paths:
+      - .github/workflows/clean-windows-feasibility.yml
+      - spikes/manual/probe_nested_windows.ps1
+  pull_request:
+    paths:
+      - .github/workflows/clean-windows-feasibility.yml
+      - spikes/manual/probe_nested_windows.ps1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Inspect supported nested-Windows prerequisites
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Read actual VM host and processor capabilities
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -NonInteractive -File spikes/manual/probe_nested_windows.ps1 -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw "Read-only feasibility regression checks failed" }
+          & powershell.exe -NoProfile -NonInteractive -File spikes/manual/probe_nested_windows.ps1 -Report nested-windows-prerequisites.json
+          if ($LASTEXITCODE -ne 0) { throw "Feasibility diagnostic failed to emit its report" }
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: clean-windows-cloud-prerequisites
+          path: nested-windows-prerequisites.json
+          if-no-files-found: error
+          retention-days: 14
