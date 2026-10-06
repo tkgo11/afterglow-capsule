@@ -120,8 +120,18 @@ production adoption and rerun mandatory interoperability tests for any change.
 
 CI now scans all three Rust graphs against one freshly checked-out official
 database revision and preserves raw reports, hashes and warning IDs. Known
-vulnerabilities, unsoundness warnings, ignored/filtered reports, malformed output,
-changed lockfiles and scanner failures fail the job. Eight failure regressions
+vulnerabilities, unsoundness/yank warnings, ignored/filtered reports, malformed
+output, changed lockfiles and scanner errors (including stderr errors with a zero
+exit code) fail the job. Nine failure regressions
 check the report handling. npm checks include all severity levels and preserve
 their raw result. These advisory checks are development tooling: they neither
 ship in Viewer nor establish a comprehensive dependency audit or Phase 2 PASS.
+
+The first hosted scan at `d4e8d10` preserved cargo-audit's zero exit code alongside
+missing cached crate-index yank-metadata errors. Its advisory scan is recorded,
+but its yank checks are incomplete. The [original raw reports](https://github.com/tkgo11/afterglow-capsule/actions/runs/37501275986/artifacts/11430255822)
+remain available with ZIP SHA-256
+`3acb7fbf3dcb65a9f029a230e8aa33241ce5196a1ad71f17473058c4acf57ca5`.
+CI now fetches all three locked graphs before
+scanning, preserves those earlier raw reports, and rejects this zero-exit partial
+failure. No advisory exclusion or skipped yank check is used to hide it.

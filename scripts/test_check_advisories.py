@@ -17,6 +17,10 @@ class AdvisoryFailures(unittest.TestCase):
     def test_nonzero_tool_exit_cannot_pass_with_empty_vulnerabilities(self):
         self.assertTrue(inspect_report(empty_report(), 1)[0])
 
+    def test_missing_yank_metadata_error_blocks_even_with_zero_exit(self):
+        actual_error = "error: couldn't check if the package is yanked: not found: No such crate in crates.io index: chrono"
+        self.assertTrue(inspect_report(empty_report(), 0, actual_error)[0])
+
     def test_failed_or_missing_report_cannot_pass(self):
         for value in (None, {}, {"error": "network failed"}, []):
             self.assertTrue(inspect_report(value, 0)[0])

@@ -15,11 +15,13 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def inspect_report(report, exit_code):
+def inspect_report(report, exit_code, stderr=""):
     """A tool failure, inconsistent report or unsoundness cannot become PASS."""
     reasons = []
     if exit_code != 0:
         reasons.append(f"cargo-audit exited {exit_code}")
+    if any(line.strip().casefold().startswith("error:") for line in stderr.splitlines()):
+        reasons.append("cargo-audit reported scanner errors on stderr")
     if not isinstance(report, dict):
         return reasons + ["Missing JSON audit report"], []
     for section, field in (("database", "advisory-count"), ("lockfile", "dependency-count")):
@@ -53,8 +55,8 @@ def inspect_report(report, exit_code):
                                      "package": entry["package"]["name"], "version": entry["package"]["version"]})
                 except (KeyError, TypeError):
                     reasons.append("Malformed warning entry")
-            if kind == "unsound" and entries:
-                reasons.append("Reported unsound dependency")
+            if kind in ("unsound", "yanked") and entries:
+                reasons.append(f"Reported {kind} dependency")
     settings = report.get("settings", {})
     if not isinstance(settings, dict):
         return reasons + ["Malformed audit settings"], findings
@@ -98,7 +100,7 @@ def main():
         with log.open("wb") as stdout, error.open("wb") as stderr:
             try:
                 process = subprocess.run([args.audit_bin, "audit", "--file", str(lock), "--db", str(database),
-                                          "--no-fetch", "--deny", "unsound", "--json"],
+                                          "--no-fetch", "--deny", "unsound", "--deny", "yanked", "--color", "never", "--json"],
                                          cwd=ROOT, stdout=stdout, stderr=stderr, timeout=180)
                 exit_code = process.returncode
             except subprocess.TimeoutExpired:
@@ -107,7 +109,7 @@ def main():
             report = json.loads(log.read_bytes())
         except (ValueError, OSError):
             report = None
-        reasons, findings = inspect_report(report, exit_code)
+        reasons, findings = inspect_report(report, exit_code, error.read_text(errors="replace"))
         if digest(lock) != before:
             reasons.append("Audit changed the lockfile")
         result = {"graph": graph, "status": "FAIL" if reasons else "PASS", "exit_code": exit_code,
