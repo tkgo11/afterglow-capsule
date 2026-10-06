@@ -1,7 +1,9 @@
 # Phase 2 physical evidence — version 2
 
 Use the complete `phase-2-clean-vm-evidence` and `phase-2-gpu-probe` artifacts
-identified in the [evidence decision](../../docs/decisions/0003-phase2-evidence.md).
+identified in the [evidence decision](https://github.com/tkgo11/afterglow-capsule/blob/codex/phase-1-mandatory-spikes/docs/decisions/0003-phase2-evidence.md).
+Save [the reviewed provenance JSON](https://raw.githubusercontent.com/tkgo11/afterglow-capsule/codex/phase-1-mandatory-spikes/docs/decisions/phase2-trusted-provenance.json)
+separately as `reviewed-provenance.json`; it anchors the exact reviewed artifacts.
 These are isolated experiments using public synthetic content, not a working
 Builder or Viewer. No signing keys are distributed. Version 1 bundles are
 obsolete for new acceptance evidence; retain their logs/results for audit.

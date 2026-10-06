@@ -74,3 +74,50 @@ Windows-native collection smoke, live timelock/NTS, artifact provenance and hash
 review must finish before a new artifact is recommended. CI completion alone
 never accepts C/D. A genuine reviewed Phase 2 PASS is necessary before starting
 Phase 3 and proceeding in SPEC order; pending evidence leaves Phases 3–12 pending.
+
+## Reviewed version 2 artifacts and cloud checks
+
+Review date for this result: 2026-10-07 (Asia/Seoul).
+
+[All five mandatory spike CI jobs](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855142)
+passed. Source commit `95c028697cd4dd028deb84c9b27196f9d0e1ead4` produced the
+following independently downloaded and reviewed bundles. Use these exact
+artifacts with [the reviewed trusted provenance](phase2-trusted-provenance.json),
+not an arbitrary later rebuild. Both ZIP hashes match GitHub's upload digest;
+bundle-listed file hashes and actual x64 PE/EXE hashes match. No keys, certificate
+files, project sidecars or redistributable DLLs are included. `objdump -p` confirms
+C/D/validator imports have no VCRUNTIME/MSVCP redistributable dependency.
+
+| Bundle | Exact artifact                                                                                            | ZIP SHA-256                                                      | EXE SHA-256                                                      |
+| ------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| C      | [11426901800](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855142/artifacts/11426901800) | e518e60d55fdd786a1ace8c75c030fc05c5c69f916aaadbb03664521796accd1 | 3e63634cb7fed8e31f87dfb4b81bcd0fb19e960c29ce2e97fbd274fd2aa1e17d |
+| D      | [11426458174](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855142/artifacts/11426458174) | 62b4f34d292de2874eecacac971394c336bfcb0d290a979eadcad66467eaf361 | a76b8c0b83fd7a0e6c7ade4203db6b8d0035c76ffb3af370b1c9a022141408c0 |
+
+Artifact expiration is **2026-10-21 in Asia/Seoul** (October 20 UTC). A rebuild
+requires new independent provenance review because workflow/manifest hashes and
+disposable signing hashes change. Preserve reviewed bundles and returned evidence.
+
+[Workspace CI](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855079)
+passed all four Linux/Windows/bootstrap/frontend/fuzz jobs. The instrumented
+30-second parser targets completed 15,487,125 / 3,007,365 / 3,382,201 / 2,837,870
+runs respectively; this is bounded smoke, not Phase 12 acceptance. The
+[Windows native C job](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855142/job/112373230770)
+passed signing/readback/post-sign rejection/cleanup and actual WinPS 5.1 native
+resource/Shell-icon extraction smoke, while correctly reporting hosted cleanliness
+FAIL. The [D artifact job](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855142/job/112373230630)
+passed the 39 pure WinPS 5.1 collector regressions and native enumeration; its
+actual hosted adapter is Microsoft Basic Render Driver (`Cpu`), closing no cell.
+
+The [current validator result](phase2-validation-status.json), generated using
+the exact downloaded bundles and separately reviewed provenance, is **PENDING**:
+A/B references pass; the genuine recipient report and physical matrix are absent.
+No synthetic fixture or hosted diagnostic was inserted as returned physical
+evidence.
+
+The actual hosted feasibility report records Windows Server 2025 Datacenter,
+installed developer tooling and no WindowsSandbox.exe. Hyper-V management and
+features are present; that alone neither proves working nested client execution
+nor supplies a licensed clean client image. The separate
+[clean-Windows investigation](0004-clean-windows-cloud.md) records supported
+prerequisites without treating Server, containers or development appliances as
+recipient acceptance. No cloud VM subscription/credentials/image are configured.
