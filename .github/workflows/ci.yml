@@ -9,6 +9,67 @@ permissions:
   contents: read
 
 jobs:
+  rust-advisories:
+    name: Rust dependency advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python -m unittest scripts.test_check_advisories
+      - run: rustup show
+      - run: cargo install cargo-audit --version 0.22.2 --locked --no-default-features
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: RustSec/advisory-db
+          path: advisory-db
+          persist-credentials: false
+      - name: Scan all three locks without advisory or platform exclusions
+        run: python scripts/check_advisories.py --db advisory-db --output dependency-evidence
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
+        with:
+          name: rust-advisory-evidence
+          path: dependency-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  frontend-advisories:
+    name: Frontend dependency advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - run: npm install --global npm@11.9.0
+      - run: npm ci
+      - name: Scan production and development dependencies
+        shell: bash
+        run: |
+          mkdir -p dependency-evidence
+          git rev-parse HEAD > dependency-evidence/source-commit.txt
+          sha256sum package-lock.json > dependency-evidence/package-lock.sha256
+          npm --version > dependency-evidence/npm-version.txt
+          npm audit --audit-level=info --json | tee dependency-evidence/npm-audit.json
+          sha256sum --check dependency-evidence/package-lock.sha256
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
+        with:
+          name: frontend-advisory-evidence
+          path: dependency-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
   bootstrap:
     name: Bootstrap (${{ matrix.os }})
     strategy:

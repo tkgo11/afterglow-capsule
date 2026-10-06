@@ -39,8 +39,8 @@ All dependencies below are confined to the excluded `spikes/` workspace or its
 Go wrapper. Production Builder/Viewer dependency closures do not include them.
 Exact registry artifacts and transitive versions are committed in the separate
 Cargo/Go locks. Published crate license/repository metadata and the official Go
-reference source were inspected. **Overall security status remains unreviewed:
-no audit endorsement or comprehensive advisory assessment is claimed.** The NTS
+reference source were inspected. **Overall security status is not established:
+no audit endorsement or comprehensive security assessment is claimed.** The NTS
 candidate's maintenance record and the specific Rustls advisory below were reviewed.
 Passing the listed tests establishes that evidence; it does not establish overall
 cryptographic security. Production
@@ -72,7 +72,8 @@ The published `rkik-nts 1.4.0` changelog records 2026-10-03 Windows compatibilit
 bounded-cookie and TLS-security fixes. The official RustSec
 [RUSTSEC-2026-0285](https://rustsec.org/advisories/RUSTSEC-2026-0285.html) advisory
 lists Rustls >=0.23.45 as patched; the candidate locks 0.23.45. This specific review
-does not imply that the full dependency closure has been audited or scanned.
+was originally limited to that advisory. The current lockfile advisory scans
+below remain a separate, limited review and do not establish overall security.
 
 No dangerous TLS configuration, TLS key logging, fabricated beacon or development
 release path is enabled in production. No production cryptographic or platform
@@ -93,3 +94,34 @@ Instrumented development-only parser smoke uses `cargo-fuzz 0.13.2`
 `nightly-2025-09-15` (Rust compiler 1.92 nightly). Exact install uses `--locked`;
 production remains Rust 1.90.0. These development tools were executed and source/
 license provenance reviewed, not comprehensively security audited.
+
+## Existing lockfile advisory checks
+
+On 2026-10-07, `cargo-audit 0.22.2` (Apache-2.0 OR MIT,
+https://github.com/rustsec/rustsec, Rust >=1.88) scanned the root, isolated spike
+and fuzz lockfiles against the official RustSec database revision
+`ef6173cbc5c50ec8166f9a5b28f07834144373ee` (2026-10-03; 1,290 advisories).
+The graphs contained 82, 434 and 77 dependencies respectively. No published
+vulnerability was reported, with no ignored advisory, platform or severity
+filter. All lock hashes remained unchanged. npm 11.9.0 reported zero
+vulnerabilities across its 248 locked dependencies, including development tools.
+The [recorded review](decisions/dependency-advisory-review.json) preserves exact
+lock/report hashes, database revision and the informational warning.
+
+RustSec [RUSTSEC-2026-0173](https://rustsec.org/advisories/RUSTSEC-2026-0173.html)
+reports unmaintained `proc-macro-error2 2.0.1`, reached only through Spike A's
+compile-time localization chain: `tlock_age 0.0.10 -> age 0.11.5 ->
+i18n-embed-fl 0.9.4`. Registry checks found no age 0.11.6 or i18n-embed-fl 0.9.5.
+The published newer lines (age 0.12.1, i18n-embed-fl 0.10.1) fall outside the
+current parents' age 0.11/i18n-embed-fl 0.9 constraints. The warning is retained
+visibly; changing or forking the validated crypto dependency path solely for this
+informational warning is not adopted. Resolve/review maintenance before
+production adoption and rerun mandatory interoperability tests for any change.
+
+CI now scans all three Rust graphs against one freshly checked-out official
+database revision and preserves raw reports, hashes and warning IDs. Known
+vulnerabilities, unsoundness warnings, ignored/filtered reports, malformed output,
+changed lockfiles and scanner failures fail the job. Eight failure regressions
+check the report handling. npm checks include all severity levels and preserve
+their raw result. These advisory checks are development tooling: they neither
+ship in Viewer nor establish a comprehensive dependency audit or Phase 2 PASS.

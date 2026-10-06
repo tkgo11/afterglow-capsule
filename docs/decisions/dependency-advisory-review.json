@@ -1,0 +1,95 @@
+{
+  "format_name": "afterglow-dependency-advisory-result",
+  "format_version": 1,
+  "minimum_reader_version": 1,
+  "status": "PASS",
+  "lockfiles_unchanged": true,
+  "source_commit": "2a1ec537ee29814e7d6510a9d453c1bed2c2e63c",
+  "tool": "cargo-audit 0.22.2",
+  "advisory_database": {
+    "origin": "https://github.com/RustSec/advisory-db.git",
+    "revision": "ef6173cbc5c50ec8166f9a5b28f07834144373ee"
+  },
+  "results": [
+    {
+      "graph": "root",
+      "status": "PASS",
+      "exit_code": 0,
+      "lockfile": "Cargo.lock",
+      "lockfile_sha256": "5e0c733bb1634a590b75533d1bb512d6d3986b88b731ae810a4aa743b503432d",
+      "reasons": [],
+      "warnings": [],
+      "report": "root-audit.json",
+      "report_sha256": "89c5f1ae1e8f96ca163a0989afd054ffdc6f50b9dcfca82ed75839bac37dc191",
+      "stderr": "root-audit.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "graph": "spikes",
+      "status": "PASS",
+      "exit_code": 0,
+      "lockfile": "spikes/Cargo.lock",
+      "lockfile_sha256": "6c9bc4a03356a8e720814c4fb47cbf93452bf94556c45a578e717aea6e136d3a",
+      "reasons": [],
+      "warnings": [
+        {
+          "kind": "unmaintained",
+          "id": "RUSTSEC-2026-0173",
+          "package": "proc-macro-error2",
+          "version": "2.0.1"
+        }
+      ],
+      "report": "spikes-audit.json",
+      "report_sha256": "6bca32ec82477b0d399cd343d70de90dc757cdedec7e002628063c26a6de1e82",
+      "stderr": "spikes-audit.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "graph": "fuzz",
+      "status": "PASS",
+      "exit_code": 0,
+      "lockfile": "fuzz/Cargo.lock",
+      "lockfile_sha256": "d637689a84a58f9c0f5be216fd5370977cd0c758185ef328c1b7ee2b97f70583",
+      "reasons": [],
+      "warnings": [],
+      "report": "fuzz-audit.json",
+      "report_sha256": "ea3e11085827039aef1350a1ef2c55699485a7b3a7a9a3e8614ac5849fd0a1f8",
+      "stderr": "fuzz-audit.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "scope": "Published RustSec snapshot, no target/severity/advisory exclusions. Informational warnings retained; not a comprehensive audit or phase acceptance.",
+  "review_date": "2026-10-07",
+  "frontend": {
+    "status": "PASS",
+    "tool": "npm 11.9.0",
+    "lockfile": "package-lock.json",
+    "lockfile_sha256": "c02e4617bee145eaf43471b9798c83f23b0186631e1cdea67a4ff2e22994a92f",
+    "report_sha256": "25f575e28490af6e0402e6a5825127fd725c98067bc4a1f622e0c31eae2d7854",
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 23,
+        "dev": 226,
+        "optional": 27,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 248
+      }
+    }
+  },
+  "warning_review": {
+    "id": "RUSTSEC-2026-0173",
+    "dependency_chain": "afterglow-spike-a -> tlock_age 0.0.10 -> age 0.11.5 -> i18n-embed-fl 0.9.4 -> proc-macro-error2 2.0.1",
+    "scope": "Isolated Spike A compile-time localization macro; no production crypto adoption. Informational unmaintained advisory, not a reported vulnerability.",
+    "compatible_patch_checks": "Registry rejected age 0.11.6 and i18n-embed-fl 0.9.5. Published newer lines age 0.12.1 and i18n-embed-fl 0.10.1 are outside current parent constraints (age 0.11 and i18n-embed-fl 0.9).",
+    "decision": "Retain warning visibly. Do not fork or change the validated cryptographic dependency path for an informational warning. Resolve/review maintenance before production adoption, with all required interoperability tests for any dependency change."
+  }
+}
