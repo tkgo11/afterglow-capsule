@@ -12,6 +12,23 @@ VM management service state, actual `Get-VMHost`/`Get-VM` query results, and fre
 disk space. It always reports PENDING because none of these queries proves a
 clean guest was booted or tested.
 
+The separate `spikes/manual/probe_nested_boot.ps1` can test execution rather than
+infer capability from flags. It creates one uniquely named, exact-ID-owned
+generation-2 VM with 512 MiB RAM, no VHD, OS, boot media or network switch. A
+bounded background job attempts to start its firmware; AVAILABLE requires the
+actual owned VM to reach Running. A failed actual start records UNAVAILABLE for
+that allocated host attempt; setup failures remain NOT_TESTED. The probe stops
+and removes only its exact owned VM and scratch tree, preserving cleanup failures
+in the report and failing CI if cleanup cannot be verified. It makes no host
+feature, trust, network, display or reboot changes. This is an empty firmware
+capability probe, **not** installation or execution of a clean Windows client.
+Its overall clean-recipient status always remains PENDING, even if firmware runs.
+
+The supported Hyper-V operations used by this isolated diagnostic are documented
+by Microsoft: [New-VM with `-NoVHD`](https://learn.microsoft.com/en-us/powershell/module/hyper-v/new-vm?view=windowsserver2025-ps),
+[Start-VM with an exact VM object](https://learn.microsoft.com/en-us/powershell/module/hyper-v/start-vm?view=windowsserver2025-ps)
+and [Remove-VM with an exact VM object](https://learn.microsoft.com/en-us/powershell/module/hyper-v/remove-vm).
+
 Microsoft documents nested Hyper-V as a supported test/evaluation mechanism.
 CPU virtualization extensions must be exposed by the outer host; installing a
 module in the runner does not expose them. The outer physical-host operation
