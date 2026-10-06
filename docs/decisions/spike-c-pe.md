@@ -1,7 +1,7 @@
 # Spike C — PE resources and Authenticode
 
-Status: **BLOCKED — native replacement/signing/readback passed; clean VM/shell outstanding**.
-Review date: 2026-10-06.
+Status: **PENDING — native replacement/signing/collector passed; clean VM/icon observation outstanding**.
+Initial review: 2026-10-06. Evidence-tooling review: 2026-10-07.
 Canonical acceptance: SPEC.md §23 and §148.
 
 ## Evaluated stack and environment
@@ -11,7 +11,7 @@ Linux x64, Rust 1.90.0 with installed `x86_64-pc-windows-msvc` target, Python
 resource APIs. License/upstream/security status are in [dependencies](../dependencies.md).
 No production PE packager or runtime-resource loader is selected yet.
 
-## Commands and observed results
+## Historical version 1 commands and observed results
 
 ```sh
 python spikes/pe/test_fixtures.py
@@ -98,3 +98,15 @@ clean-recipient inventory, strict trusted provenance and preserved retries.
 The [new one-command protocol](../../spikes/manual/README.md) supersedes the
 old collector instructions. Physical C/D acceptance remains PENDING; automated
 regression fixtures and hosted success do not count as physical evidence.
+
+The reviewed [version 2 native Windows job](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855142/job/112373230770)
+passed resource replacement, signing, exact readback, post-sign rejection,
+cleanup, Windows PowerShell 5.1 collector checks and actual Shell extraction.
+Downloaded PE imports confirm the new standalone EXE has no VCRUNTIME140.dll
+dependency. The hosted environment correctly failed cleanliness; the icon's
+human observation stayed null. Exact bundle hashes and the genuinely PENDING
+full-gate result are pinned in the linked evidence decision.
+
+The [cloud investigation](0004-clean-windows-cloud.md) subsequently proved an
+isolated empty nested firmware VM can execute on an allocated hosted runner.
+That diagnostic installed no Windows client and cannot satisfy the clean VM gate.

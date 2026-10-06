@@ -1,7 +1,8 @@
 # Spike D — wgpu Temporal Glass
 
-Status: **BLOCKED — shader/policy tests and cross-check only**.
-Review date: 2026-10-06. Canonical acceptance: SPEC.md §24 and §148.
+Status: **PENDING — native probe/collector/validator checks passed; physical matrix outstanding**.
+Initial review: 2026-10-06. Evidence-tooling review: 2026-10-07.
+Canonical acceptance: SPEC.md §24 and §148.
 
 ## Evaluated stack and environment
 
@@ -11,7 +12,7 @@ passes. These versions support the pinned Rust toolchain; production renderer
 selection, performance and driver compatibility remain unvalidated. See
 [dependencies](../dependencies.md) for licenses/upstreams/security status.
 
-## Commands and observed results
+## Historical version 1 commands and observed results
 
 ```sh
 cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-spike-d
@@ -75,3 +76,12 @@ clean-recipient inventory, strict trusted provenance and preserved retries.
 The [new one-command protocol](../../spikes/manual/README.md) supersedes the
 old collector instructions. Physical C/D acceptance remains PENDING; automated
 regression fixtures and hosted success do not count as physical evidence.
+
+The reviewed [version 2 native Windows build/collector job](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855142/job/112373230630)
+passed, including 39 pure collector regressions. The probe's 14 Rust tests cover
+explicit class selection, missing/ambiguous adapters, shader and cadence policy,
+dimensions and bounded startup behavior; the shared strict validator has 56
+tests. These checks passed on Linux and Windows. Hosted inventory reported a
+CPU adapter and contributed zero physical matrix cells. Exact reviewed bundle
+hashes and the genuinely PENDING full-gate result are pinned in the linked
+evidence decision; no synthetic fixture is accepted as hardware evidence.
