@@ -27,7 +27,7 @@ if ($SelfTest) {
         if ($CommandName) { $CommandName = ($CommandName -split '\\')[-1] }
         if ($Forbidden -contains $CommandName) { throw ('Forbidden global/media operation: ' + $CommandName) }
         if ($CommandName -in @('Start-VM','Stop-VM','Remove-VM')) {
-            $Parameters = @($Command.CommandElements | Where-Object { $_ -is [Management.Automation.Language.CommandParameterAst } | ForEach-Object { $_.ParameterName })
+            $Parameters = @($Command.CommandElements | Where-Object { $_ -is [Management.Automation.Language.CommandParameterAst] } | ForEach-Object { $_.ParameterName })
             if ($Parameters -notcontains 'VM' -or $Parameters -contains 'Name') { throw 'VM mutations must use an explicitly validated VM object, never name wildcards.' }
             for ($Index = 1; $Index -lt $Command.CommandElements.Count; $Index++) {
                 $Element = $Command.CommandElements[$Index]
@@ -38,7 +38,7 @@ if ($SelfTest) {
             }
         }
         if ($CommandName -eq 'Remove-Item') {
-            $Parameters = @($Command.CommandElements | Where-Object { $_ -is [Management.Automation.Language.CommandParameterAst } | ForEach-Object { $_.ParameterName })
+            $Parameters = @($Command.CommandElements | Where-Object { $_ -is [Management.Automation.Language.CommandParameterAst] } | ForEach-Object { $_.ParameterName })
             if ($Parameters -notcontains 'LiteralPath' -or $Parameters -contains 'Path') { throw 'Scratch cleanup must use one literal owned path.' }
             for ($Index = 1; $Index -lt $Command.CommandElements.Count; $Index++) {
                 $Element = $Command.CommandElements[$Index]
@@ -49,7 +49,7 @@ if ($SelfTest) {
             }
         }
         if ($CommandName -eq 'Get-VM') {
-            $Parameters = @($Command.CommandElements | Where-Object { $_ -is [Management.Automation.Language.CommandParameterAst } | ForEach-Object { $_.ParameterName })
+            $Parameters = @($Command.CommandElements | Where-Object { $_ -is [Management.Automation.Language.CommandParameterAst] } | ForEach-Object { $_.ParameterName })
             if ($Parameters -notcontains 'Id' -and $Parameters -notcontains 'Name') { throw 'Firmware diagnostic must not enumerate or mutate arbitrary existing VMs.' }
         }
     }
