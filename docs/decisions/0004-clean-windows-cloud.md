@@ -116,3 +116,17 @@ processor virtualization flags were false. Those flags are not interpreted alone
 as proof that child execution is impossible; actual firmware execution is tested
 separately by the narrowly owned probe above. No client media or guest execution
 was represented by this diagnostic report.
+
+The subsequent [actual firmware execution job](https://github.com/tkgo11/afterglow-capsule/actions/runs/37496787894/job/112383261479)
+passed on source `deaab7dbc48cdb072943990241071a621af150f4`. Its downloaded
+[artifact](https://github.com/tkgo11/afterglow-capsule/actions/runs/37496787894/artifacts/11428365671)
+ZIP SHA-256 `e041a2b56d86b567b40e4f51d8e3122c2d3f216aaa861595eba93585937e034f`
+was independently verified. The generation-2, empty 512 MiB VM actually reached
+Running; `boot_capability` was AVAILABLE, and strict owned-VM cleanup was PASS
+with no diagnostic or cleanup problems. Thus this allocated standard hosted
+runner can execute nested firmware. No Windows client was installed or run:
+`has_os`, `has_media`, `has_vhd` and `qualifies_clean_recipient` all remained false,
+and the clean-recipient result remained PENDING. A properly licensed/registered
+client image, supported guest installation and configured guest account are still
+needed for the cloud recipient route, followed by the existing guest collector
+and honest Shell-icon observation.
