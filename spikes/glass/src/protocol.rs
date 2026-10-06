@@ -296,6 +296,41 @@ pub fn statistics(values: &[f64]) -> Option<(f64, f64)> {
     ))
 }
 
+/// Startup-only retries never erase required measurements. Every interrupted
+/// warmup restarts its continuous elapsed period, with a total retry budget.
+#[derive(Default)]
+pub struct Warmup {
+    pub surface_retries: u32,
+    started: Option<Instant>,
+}
+impl Warmup {
+    pub fn reset(&mut self) {
+        self.started = None;
+    }
+    pub fn successful_frame(&mut self, now: Instant) {
+        self.started.get_or_insert(now);
+    }
+    pub fn ready(&self, now: Instant, seconds: u64) -> bool {
+        self.started.is_some_and(|start| {
+            now.duration_since(start) >= std::time::Duration::from_secs(seconds)
+        })
+    }
+    pub fn retry_surface(&mut self, collecting: bool) -> Result<(), String> {
+        if collecting {
+            return Err("surface acquisition failed during a required sample; no retry can erase that failure".into());
+        }
+        if self.surface_retries >= 3 {
+            return Err(
+                "warmup surface retry budget exhausted (maximum three reconfigurations/timeouts)"
+                    .into(),
+            );
+        }
+        self.surface_retries += 1;
+        self.reset();
+        Ok(())
+    }
+}
+
 #[derive(Default)]
 pub struct Samples {
     pub intervals: Vec<f64>,
@@ -528,6 +563,25 @@ mod tests {
         assert!(sample.validate(true).is_err());
         sample.acknowledgements.push(2.0);
         assert!(sample.validate(true).is_ok());
+    }
+    #[test]
+    fn warmup_retry_restarts_continuous_time_and_never_hides_sample_failure() {
+        let now = Instant::now();
+        let later = now + std::time::Duration::from_secs(3);
+        let mut warmup = Warmup::default();
+        warmup.successful_frame(now);
+        assert!(warmup.ready(later, 3));
+        warmup.retry_surface(false).unwrap();
+        assert!(!warmup.ready(later, 3));
+        warmup.successful_frame(later);
+        assert!(!warmup.ready(later + std::time::Duration::from_secs(2), 3));
+        assert!(warmup.ready(later + std::time::Duration::from_secs(3), 3));
+        assert!(warmup.retry_surface(true).is_err());
+        assert_eq!(warmup.surface_retries, 1);
+        warmup.retry_surface(false).unwrap();
+        warmup.retry_surface(false).unwrap();
+        assert!(warmup.retry_surface(false).is_err());
+        assert_eq!(warmup.surface_retries, 3);
     }
     #[test]
     fn invalid_statistics_are_rejected() {

@@ -7,7 +7,7 @@ mod quality;
 
 use input::InputDriver;
 use protocol::{
-    Options, Samples, adapter_json, check_dimensions, emit, fullscreen_cell, native_dpi,
+    Options, Samples, Warmup, adapter_json, check_dimensions, emit, fullscreen_cell, native_dpi,
     select_adapter, statistics,
 };
 use serde_json::json;
@@ -65,14 +65,6 @@ impl Gpu {
         if !options.class.matches(&info) {
             return Err("actual adapter class differs from requested class".into());
         }
-        let actual_size = window.inner_size();
-        native_dpi(&window)?;
-        check_dimensions(
-            options,
-            actual_size.width,
-            actual_size.height,
-            window.scale_factor(),
-        )?;
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("Spike D"),
@@ -321,7 +313,9 @@ struct Probe {
     gpu: Option<Gpu>,
     quality: Quality,
     launched: Instant,
-    warmup_start: Option<Instant>,
+    warmup: Warmup,
+    gpu_ready: Option<Instant>,
+    startup_invalidations: u32,
     last: Option<Instant>,
     samples: Samples,
     driver: InputDriver,
@@ -340,12 +334,38 @@ impl Probe {
             emit("failure", json!({"reason":reason}));
             emit(
                 "complete",
-                json!({"status":"FAIL","windows_collected":self.windows,"reason":reason}),
+                json!({"status":"FAIL","windows_collected":self.windows,"reason":reason,"warmup_surface_retries":self.warmup.surface_retries,"startup_invalidations":self.startup_invalidations}),
             );
             self.failed = true;
             self.completed = true;
         }
         event_loop.exit();
+    }
+    fn begin_samples(&mut self, event_loop: &ActiveEventLoop) -> bool {
+        let gpu = self.gpu.as_ref().unwrap();
+        let measured_dpi = match native_dpi(&gpu.window) {
+            Ok(value) => value,
+            Err(reason) => {
+                self.fail(event_loop, reason);
+                return false;
+            }
+        };
+        emit(
+            "start",
+            json!({"requested_gpu_class":self.options.class.name(),"requested_dpi_percent":self.options.dpi,
+                    "width":gpu.config.width,"height":gpu.config.height,"requested_mode":self.options.quality.name(),
+                    "actual_dpi_percent":gpu.window.scale_factor()*100.0,"adapter":adapter_json(&gpu.adapter),
+                    "native_dpi":measured_dpi,"dpi_awareness":"PerMonitorAware",
+                    "window_mode":if gpu.window.fullscreen().is_some(){"borderless_fullscreen"}else{"borderless_window"},
+                    "quality_basis":"max(interval_avg_ms, interval_p95_ms)","warmup_surface_retries":self.warmup.surface_retries,"startup_invalidations":self.startup_invalidations,
+                    "drive_input":self.options.drive_input,"sample_windows":self.options.windows,"warmup_seconds":self.options.warmup,
+                    "latency_definition":"CPU SendInput call to matching received winit event; event dispatch to frame submission/present call; not photon latency"}),
+        );
+        self.collecting = true;
+        self.samples = Samples::default();
+        self.last = None;
+        self.driver = InputDriver::default();
+        true
     }
     fn sample(&mut self, event_loop: &ActiveEventLoop) {
         if let Err(reason) = self.samples.validate(self.options.drive_input) {
@@ -379,7 +399,7 @@ impl Probe {
         if self.windows == self.options.windows {
             emit(
                 "complete",
-                json!({"status":"PASS","windows_collected":self.windows,"reason":"machine observations complete; physical provenance and human responsiveness/foreground observations require separate acceptance"}),
+                json!({"status":"PASS","windows_collected":self.windows,"warmup_surface_retries":self.warmup.surface_retries,"startup_invalidations":self.startup_invalidations,"reason":"machine observations complete; physical provenance and human responsiveness/foreground observations require separate acceptance"}),
             );
             self.completed = true;
             event_loop.exit();
@@ -437,28 +457,8 @@ impl ApplicationHandler for Probe {
             .and_then(|window| pollster::block_on(Gpu::new(Arc::new(window), &self.options)));
         match result {
             Ok(gpu) => {
-                let measured_dpi = match native_dpi(&gpu.window) {
-                    Ok(value) => value,
-                    Err(reason) => {
-                        self.fail(event_loop, reason);
-                        return;
-                    }
-                };
-                emit(
-                    "start",
-                    json!({"requested_gpu_class":self.options.class.name(),"requested_dpi_percent":self.options.dpi,
-                    "width":gpu.config.width,"height":gpu.config.height,"requested_mode":self.options.quality.name(),
-                    "actual_dpi_percent":gpu.window.scale_factor()*100.0,"adapter":adapter_json(&gpu.adapter),
-                    "native_dpi":measured_dpi,"dpi_awareness":"PerMonitorAware",
-                    "window_mode":if gpu.window.fullscreen().is_some(){"borderless_fullscreen"}else{"borderless_window"},
-                    "quality_basis":"max(interval_avg_ms, interval_p95_ms)",
-                    "drive_input":self.options.drive_input,"sample_windows":self.options.windows,"warmup_seconds":self.options.warmup,
-                    "latency_definition":"CPU SendInput call to matching received winit event; event dispatch to frame submission/present call; not photon latency"}),
-                );
                 self.focused = gpu.window.has_focus();
-                if self.focused {
-                    self.warmup_start = Some(Instant::now());
-                }
+                self.gpu_ready = Some(Instant::now());
                 gpu.window.request_redraw();
                 self.gpu = Some(gpu);
             }
@@ -499,8 +499,15 @@ impl ApplicationHandler for Probe {
                     size.height,
                     gpu.window.scale_factor(),
                 ) {
-                    self.fail(event_loop, reason);
-                    return;
+                    if self.collecting {
+                        self.fail(event_loop, reason);
+                        return;
+                    }
+                    self.warmup.reset();
+                    self.startup_invalidations += 1;
+                }
+                if !self.collecting {
+                    self.warmup.reset();
                 }
                 gpu.resize(size);
             }
@@ -511,7 +518,12 @@ impl ApplicationHandler for Probe {
                     gpu.config.height,
                     scale_factor,
                 ) {
-                    self.fail(event_loop, reason);
+                    if self.collecting {
+                        self.fail(event_loop, reason);
+                    } else {
+                        self.warmup.reset();
+                        self.startup_invalidations += 1;
+                    }
                 }
             }
             WindowEvent::Focused(focused) => {
@@ -523,7 +535,7 @@ impl ApplicationHandler for Probe {
                 self.last = None;
                 self.samples = Samples::default();
                 self.driver = InputDriver::default();
-                self.warmup_start = focused.then(Instant::now);
+                self.warmup.reset();
                 if focused {
                     gpu.window.request_redraw();
                 }
@@ -561,30 +573,29 @@ impl ApplicationHandler for Probe {
                 }
             }
             WindowEvent::RedrawRequested if self.focused => {
-                if let Err(reason) = native_dpi(&gpu.window) {
-                    self.fail(event_loop, reason);
-                    return;
-                }
-                if let Err(reason) = check_dimensions(
+                let dimensions = check_dimensions(
                     &self.options,
                     gpu.window.inner_size().width,
                     gpu.window.inner_size().height,
                     gpu.window.scale_factor(),
-                ) {
-                    self.fail(event_loop, reason);
+                );
+                let native = native_dpi(&gpu.window);
+                if let Err(reason) = dimensions.and(native.map(|_| 0.0)) {
+                    self.warmup.reset();
+                    self.startup_invalidations += 1;
+                    if self.collecting
+                        || self
+                            .gpu_ready
+                            .is_some_and(|start| start.elapsed() >= Duration::from_secs(5))
+                    {
+                        self.fail(event_loop, reason);
+                        return;
+                    }
+                    // Initial fullscreen/monitor messages may still be settling.
+                    // No start record, frame interval or input count is accepted.
                     return;
                 }
                 let now = Instant::now();
-                if !self.collecting
-                    && self.warmup_start.is_some_and(|start| {
-                        now.duration_since(start) >= Duration::from_secs(self.options.warmup)
-                    })
-                {
-                    self.collecting = true;
-                    self.samples = Samples::default();
-                    self.last = None;
-                    self.driver = InputDriver::default();
-                }
                 if self.options.drive_input
                     && let Err(reason) = self.driver.pump(&gpu.window, now)
                 {
@@ -598,6 +609,14 @@ impl ApplicationHandler for Probe {
                 ) {
                     Ok(true) => {
                         let now = Instant::now();
+                        if !self.collecting {
+                            self.warmup.successful_frame(now);
+                            if self.warmup.ready(now, self.options.warmup)
+                                && !self.begin_samples(event_loop)
+                            {
+                                return;
+                            }
+                        }
                         if self.collecting {
                             self.samples.presented(now);
                             if let Some(last) = self.last {
@@ -612,11 +631,13 @@ impl ApplicationHandler for Probe {
                         }
                     }
                     Ok(false) => {
-                        self.fail(
-                            event_loop,
-                            "surface acquisition failed; uninterrupted sample cannot be counted",
-                        );
-                        return;
+                        if let Err(reason) = self.warmup.retry_surface(self.collecting) {
+                            self.fail(event_loop, reason);
+                            return;
+                        }
+                        self.last = None;
+                        self.samples = Samples::default();
+                        self.driver = InputDriver::default();
                     }
                     Err(error) => {
                         self.fail(event_loop, error);
@@ -652,7 +673,9 @@ fn run() -> Result<()> {
         options,
         gpu: None,
         launched: Instant::now(),
-        warmup_start: None,
+        warmup: Warmup::default(),
+        gpu_ready: None,
+        startup_invalidations: 0,
         last: None,
         samples: Samples::default(),
         driver: InputDriver::default(),
