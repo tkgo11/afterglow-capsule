@@ -102,3 +102,17 @@ specific missing execution/provenance requirement, not a claim that all cloud
 Windows virtualization is impossible. The existing supported local Windows
 Sandbox collector remains the shorter path when Sandbox is already enabled:
 it launches a fresh actual client VM and keeps cleanliness and visual gates intact.
+
+## Observed cloud prerequisites
+
+The [native read-only diagnostic](https://github.com/tkgo11/afterglow-capsule/actions/runs/37495124322/job/112377589885)
+passed on source `7b6b54619efee06620c11e9ac6a07ae65845e443`, with its downloaded
+[artifact](https://github.com/tkgo11/afterglow-capsule/actions/runs/37495124322/artifacts/11426883267)
+ZIP SHA-256 `632f124d863b640fda02bbd017ddf5dbb23666b448460ed1a60c4fa659bf75d4`
+independently verified. The allocated Windows Server 2025 VM reported four vCPUs,
+16 GiB RAM, a running vmms service, successful Get-VMHost, zero existing guests,
+and approximately 147 GiB free on D:. WindowsSandbox.exe was absent. The three
+processor virtualization flags were false. Those flags are not interpreted alone
+as proof that child execution is impossible; actual firmware execution is tested
+separately by the narrowly owned probe above. No client media or guest execution
+was represented by this diagnostic report.

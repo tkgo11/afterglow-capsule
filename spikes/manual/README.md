@@ -8,6 +8,24 @@ These are isolated experiments using public synthetic content, not a working
 Builder or Viewer. No signing keys are distributed. Version 1 bundles are
 obsolete for new acceptance evidence; retain their logs/results for audit.
 
+## Running the reviewed bundle on stock Windows PowerShell
+
+First verify the downloaded ZIP against the separately reviewed hash in the
+evidence decision. Extract only that reviewed bundle into a new folder. If stock
+Windows PowerShell restricts unsigned scripts, use this supported process-only
+invocation in that folder (it leaves host/persistent policies and Group Policy
+restrictions effective):
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -Command "Get-ChildItem -LiteralPath . -File -Filter '*.ps1' | Unblock-File; & .\run_all_gpu_validation.ps1 -RequireIntelNvidia"
+```
+
+`Unblock-File` applies only to the reviewed bundle's local PowerShell files. For
+C, replace the invoked script with `launch_clean_windows_sandbox.ps1`, or
+`run_clean_recipient_validation.ps1` inside an actual clean VM. No executable,
+signature, trust root or machine policy is modified. A corporate policy refusal
+remains a refusal; the collector cannot turn it into acceptance.
+
 ## D: one command on the physical hybrid-GPU Windows x64 laptop
 
 Extract the GPU bundle, open Windows PowerShell 5.1 in its directory, then run:
