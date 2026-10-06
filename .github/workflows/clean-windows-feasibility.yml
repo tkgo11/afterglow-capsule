@@ -6,10 +6,12 @@ on:
     paths:
       - .github/workflows/clean-windows-feasibility.yml
       - spikes/manual/probe_nested_windows.ps1
+      - spikes/manual/probe_nested_boot.ps1
   pull_request:
     paths:
       - .github/workflows/clean-windows-feasibility.yml
       - spikes/manual/probe_nested_windows.ps1
+      - spikes/manual/probe_nested_boot.ps1
   workflow_dispatch:
 
 permissions:
@@ -32,9 +34,19 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Read-only feasibility regression checks failed" }
           & powershell.exe -NoProfile -NonInteractive -File spikes/manual/probe_nested_windows.ps1 -Report nested-windows-prerequisites.json
           if ($LASTEXITCODE -ne 0) { throw "Feasibility diagnostic failed to emit its report" }
+      - name: Test one isolated empty firmware VM
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -NonInteractive -File spikes/manual/probe_nested_boot.ps1 -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw "Firmware ownership/operation regression checks failed" }
+          & powershell.exe -NoProfile -NonInteractive -File spikes/manual/probe_nested_boot.ps1 -Report nested-boot-feasibility.json
+          if ($LASTEXITCODE -ne 0) { throw "Isolated firmware cleanup failed; inspect raw diagnostics" }
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
         with:
           name: clean-windows-cloud-prerequisites
-          path: nested-windows-prerequisites.json
+          path: |
+            nested-windows-prerequisites.json
+            nested-boot-feasibility.json
           if-no-files-found: error
           retention-days: 14
