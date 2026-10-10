@@ -1,0 +1,27 @@
+[package]
+name = "ag-prepared-viewer-state"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ag-schema.workspace = true
+ag-prepared-capsule.workspace = true
+ag-prepared-object-crypto.workspace = true
+ag-prepared-object-store.workspace = true
+ag-prepared-timelock.workspace = true
+serde.workspace = true
+zeroize.workspace = true
+thiserror.workspace = true
+semver.workspace = true
+
+[dev-dependencies]
+ag-capsule.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+sha2.workspace = true
+hex = "=0.4.3"
+
+[lints]
+workspace = true

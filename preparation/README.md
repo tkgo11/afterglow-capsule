@@ -47,3 +47,10 @@ The [capsule assembler and reader](capsule/README.md) preserve the existing head
 validate contiguous object stores and section/public-object digests, check the
 exact-round envelope and scan supplied private plaintext needles plus the CEK.
 PE injection, final EXE scanning/signing and clean-machine acceptance are deferred.
+
+## Phase 6 preparation
+
+The [Viewer state engine](viewer-state/README.md) owns the cryptographic release
+sequence and keeps key access away from UI actions. Encrypted-capsule integration
+tests cover authenticated readiness, locked failures, ceremony gates and bounded
+entry/media navigation. This is not a running Viewer application.
