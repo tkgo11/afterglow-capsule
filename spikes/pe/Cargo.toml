@@ -1,0 +1,17 @@
+[package]
+name = "afterglow-spike-c"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging", "Win32_Media_KernelStreaming"] }
+
+[[bin]]
+name = "spike-c-injector"
+path = "src/injector.rs"
+
+[[bin]]
+name = "spike-c-template"
+path = "src/template.rs"

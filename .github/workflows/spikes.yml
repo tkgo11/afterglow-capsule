@@ -1,0 +1,148 @@
+name: Mandatory spike evidence (partial)
+
+# Partial evidence collection. Passing this workflow does NOT close Phase 2:
+# Physical GPU, clean recipient VM and visual shell evidence remain mandatory.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  historical-timelock:
+    name: Historical Go-Rust interoperability (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python spikes/timelock/build_and_check.py
+      - run: python spikes/timelock/test_live_inputs.py
+      - run: cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-spike-b
+      - run: cargo fmt --manifest-path spikes/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path spikes/Cargo.toml --locked --all-targets -- -D warnings
+      - run: cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-spike-d
+      - run: cargo test --manifest-path spikes/Cargo.toml --locked -p afterglow-phase2-evidence
+
+  live-windows:
+    name: Real future-round timelock and independent NTS candidates (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python spikes/timelock/build_and_check.py
+      - name: Future ciphertext, pre-round rejection, exact verified after-round decryption
+        run: python spikes/run_live.py timelock
+      - name: Two independent NTS operator candidates
+        if: ${{ !cancelled() }}
+        run: python spikes/run_live.py nts
+      - name: Official NTS operator documentation provenance
+        if: ${{ !cancelled() }}
+        run: python spikes/nts/review_operator_docs.py
+
+  pe-signing:
+    name: Windows PE resource/signing experiment
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python spikes/pe/test_fixtures.py
+      - name: Resource replacement, readback, signing and negative mutation
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $SdkTools = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending
+          if (-not $SdkTools) { throw "Windows SDK SignTool is missing" }
+          ./spikes/pe/run_spike.ps1 -SignTool $SdkTools[0].FullName -EvidenceDirectory (Join-Path $env:GITHUB_WORKSPACE "spikes/target/manual-evidence")
+      - run: cargo build --manifest-path spikes/Cargo.toml --locked --release -p afterglow-phase2-evidence
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - name: Prepare versioned clean-recipient bundle
+        shell: pwsh
+        run: ./spikes/manual/prepare_artifact.ps1 -Kind c -EvidenceDirectory (Join-Path $env:GITHUB_WORKSPACE "spikes/target/manual-evidence")
+      - name: Check strict recipient collector on Windows PowerShell 5.1
+        shell: pwsh
+        run: |
+          $Evidence = Join-Path $env:GITHUB_WORKSPACE "spikes/target/manual-evidence"
+          & powershell.exe -NoProfile -NonInteractive -File spikes/pe/test_collectors.ps1 -ArtifactDirectory $Evidence
+          if ($LASTEXITCODE -ne 0) { throw "Strict collector regression/native shell tests failed" }
+      - name: Record clean-Windows cloud feasibility
+        shell: pwsh
+        run: ./spikes/manual/check_cloud_windows.ps1 -Report spikes/target/manual-evidence/cloud-windows-feasibility.json
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: phase-2-clean-vm-evidence
+          path: spikes/target/manual-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  gpu-probe-artifact:
+    name: Build physical GPU manual probe (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - run: cargo build --manifest-path spikes/Cargo.toml --locked --release -p afterglow-spike-d
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - run: cargo build --manifest-path spikes/Cargo.toml --locked --release -p afterglow-phase2-evidence
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+      - name: Check matrix collectors with PowerShell 5.1
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -NonInteractive -File spikes/glass/test_collectors.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Matrix collector regression tests failed" }
+      - name: Prepare explicit-adapter/input v2 public probe bundle
+        shell: pwsh
+        run: |
+          $Evidence = Join-Path $env:GITHUB_WORKSPACE "spikes/target/gpu-evidence"
+          New-Item -ItemType Directory $Evidence | Out-Null
+          ./spikes/manual/prepare_artifact.ps1 -Kind d -EvidenceDirectory $Evidence
+          & "$Evidence/SpikeD-Glass.exe" --list-adapters | Set-Content -Encoding utf8 "$Evidence/hosted-adapter-inventory.jsonl"
+          if ($LASTEXITCODE -ne 0) { throw "Native adapter enumeration failed" }
+          # Inventory is provenance/diagnostics only: hosted adapters close no physical cells.
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: phase-2-gpu-probe
+          path: spikes/target/gpu-evidence/
+          if-no-files-found: error
+          retention-days: 14

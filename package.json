@@ -1,0 +1,25 @@
+{
+  "name": "afterglow-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/builder-ui"
+  ],
+  "packageManager": "npm@11.9.0",
+  "engines": {
+    "node": ">=24.19.0 <25",
+    "npm": ">=11.9.0 <12"
+  },
+  "scripts": {
+    "test": "npm run test --workspace @afterglow/builder-ui",
+    "check": "npm run check --workspace @afterglow/builder-ui",
+    "lint": "npm run lint --workspace @afterglow/builder-ui",
+    "build": "npm run build --workspace @afterglow/builder-ui",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "3.9.9",
+    "prettier-plugin-svelte": "4.1.1"
+  }
+}

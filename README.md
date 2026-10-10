@@ -66,9 +66,27 @@ See [SECURITY.md](SECURITY.md) and [SPEC.md](SPEC.md).
 
 ## Project status
 
-**Pre-alpha / specification-first.**
+**Pre-alpha / Phase 1 core implemented; Phase 2 mandatory spikes in progress.**
 
-The repository currently defines the architecture and implementation contract before production code is added.
+The repository includes the Rust workspace, subsystem and application scaffolds,
+Builder frontend test harness, and Linux/Windows CI. Phase 1 adds versioned generic
+schema/project models, public manifest and object metadata, bounded capsule header
+parsing, and parser fuzz harnesses. The application scaffolds cannot build or open archives.
+
+Isolated Go/Rust timelock, NTS, Windows PE/signing and glass probes live under
+`spikes/`. Required timelock interoperability and independent authenticated NTS
+tests passed on Windows, as did native PE signing/readback/mutation rejection.
+Clean recipient VM, shell icon and physical GPU acceptance remain outstanding.
+Phase 2 remains blocked and production Phases 3–12 have not begun. Downloadable
+spike executables and the [manual protocol](spikes/manual/README.md) support those checks.
+
+User-dependent physical execution is deferred. Independent later-phase software
+preparation is tested in the excluded [preparation workspace](preparation/README.md).
+Neither production application depends on it; prepared code does not accept a
+phase or bypass the mandatory evidence gate.
+
+See [docs/development.md](docs/development.md) for toolchains and validation commands
+and [docs/decisions/](docs/decisions/README.md) for decisions and mandatory spike status.
 
 Implementation must follow the phases and mandatory technical spikes in [SPEC.md](SPEC.md).
 

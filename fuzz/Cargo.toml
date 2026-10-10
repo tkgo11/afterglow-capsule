@@ -1,0 +1,53 @@
+[package]
+name = "afterglow-fuzz"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+ag-schema = { path = "../crates/ag-schema" }
+ag-project = { path = "../crates/ag-project" }
+ag-capsule = { path = "../crates/ag-capsule" }
+ag-prepared-object-store = { path = "../preparation/object-store" }
+semver = "=1.0.28"
+
+[[bin]]
+name = "capsule_header"
+path = "fuzz_targets/capsule_header.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "manifest"
+path = "fuzz_targets/manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "object_table"
+path = "fuzz_targets/object_table.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "workspace"
+path = "fuzz_targets/workspace.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+
+[[bin]]
+name = "prepared_encrypted_object"
+path = "fuzz_targets/prepared_encrypted_object.rs"
+test = false
+doc = false
+bench = false

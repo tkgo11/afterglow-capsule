@@ -1,0 +1,30 @@
+[workspace]
+resolver = "3"
+members = ["object-store", "object-crypto", "timelock", "capsule", "viewer-state", "time"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[workspace.dependencies]
+ag-schema = { path = "../crates/ag-schema" }
+ag-capsule = { path = "../crates/ag-capsule" }
+ag-prepared-object-store = { path = "object-store" }
+ag-prepared-object-crypto = { path = "object-crypto" }
+ag-prepared-timelock = { path = "timelock" }
+ag-prepared-capsule = { path = "capsule" }
+semver = { version = "=1.0.28", features = ["serde"] }
+thiserror = "=2.0.21"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+sha2 = "=0.10.9"
+zeroize = { version = "=1.9.0", features = ["derive"] }
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "serde"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"

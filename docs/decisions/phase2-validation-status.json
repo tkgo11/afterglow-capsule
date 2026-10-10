@@ -1,0 +1,41 @@
+{
+  "format_name": "afterglow-phase2-validation-result",
+  "format_version": 2,
+  "minimum_reader_version": 2,
+  "status": "PENDING",
+  "reasons": [
+    "spike_c: spike-c-clean-vm-result.json: No such file or directory (os error 2)",
+    "spike_d: matrix cells missing: No such file or directory (os error 2)"
+  ],
+  "gates": {
+    "spike_a": {
+      "status": "PASS",
+      "reasons": [],
+      "audit": []
+    },
+    "spike_b": {
+      "status": "PASS",
+      "reasons": [],
+      "audit": []
+    },
+    "spike_c": {
+      "status": "PENDING",
+      "reasons": [
+        "spike-c-clean-vm-result.json: No such file or directory (os error 2)"
+      ],
+      "audit": []
+    },
+    "spike_d": {
+      "status": "PENDING",
+      "reasons": [
+        "matrix cells missing: No such file or directory (os error 2)"
+      ],
+      "audit": []
+    },
+    "trusted_provenance": {
+      "status": "PASS",
+      "reasons": [],
+      "audit": []
+    }
+  }
+}

@@ -1,0 +1,18 @@
+[package]
+name = "afterglow-spike-b"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[dependencies]
+rkik-nts = "=1.4.0"
+tokio = { version = "=1.52.3", features = ["macros", "rt", "time"] }
+
+[dev-dependencies]
+rcgen = { version = "=0.14.7", default-features = false, features = ["crypto", "ring"] }
+rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "=0.26.6", default-features = false, features = ["ring", "tls12"] }
+
+[lints.rust]
+unsafe_code = "forbid"

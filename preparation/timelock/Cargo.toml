@@ -1,0 +1,29 @@
+[package]
+name = "ag-prepared-timelock"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ag-schema.workspace = true
+ag-prepared-object-crypto.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+zeroize.workspace = true
+sha2.workspace = true
+tlock_age = { version = "=0.0.10", features = ["armor"] }
+drand_core = { version = "=0.0.19", default-features = false }
+hex = "=0.4.3"
+tokio = { version = "=1.52.3", features = ["rt-multi-thread", "macros", "time"] }
+url = "=2.5.8"
+
+[build-dependencies]
+serde_json.workspace = true
+
+[dev-dependencies]
+chrono.workspace = true
+
+[lints]
+workspace = true
