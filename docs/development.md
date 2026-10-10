@@ -35,7 +35,7 @@ establish Windows spike acceptance; consult the actual Windows CI run.
 
 `npm run format` formats editable source and new documentation. The five input
 documents are excluded from Prettier to preserve canonical requirements.
-`cargo fmt --all` formats Rust. Update and commit both lockfiles intentionally.
+`cargo fmt --all` formats Rust. Update the relevant workspace lockfile intentionally.
 
 `npm run dev --workspace @afterglow/builder-ui` opens the frontend scaffold for
 development. The native Builder/Viewer entry points currently explain their
@@ -50,7 +50,7 @@ in their module documentation.
 
 `ag-schema`, `ag-project` and `ag-capsule` now provide versioned models, metadata
 validation and bounded header parsing. Their READMEs document the exact formats.
-The four runnable parser fuzz harnesses are described in `fuzz/README.md`.
+The core and prepared-object parser fuzz harnesses are described in `fuzz/README.md`.
 Compilation is checked in CI; instrumented fuzzing requires cargo-fuzz/nightly.
 
 The test directories reserve the required subsystem matrices. Implement real tests
@@ -67,3 +67,24 @@ commands. Root Cargo commands deliberately exclude these experiments. Bootstrap
 checks reject any spike package appearing in the production dependency graph.
 Reference GPU and clean recipient VM evidence must be recorded separately from
 hosted CI results; a scheduled or passing partial workflow does not close Phase 2.
+
+## Unaccepted software preparation
+
+The excluded [preparation workspace](../preparation/README.md) contains tested
+object cryptography, an exact-round timelock adapter, portable capsule assembly,
+release-owned Viewer state and pure auxiliary time consensus. These are not
+production phase exits or working applications. Bootstrap checks reject any
+prepared package in the Builder/Viewer dependency closures. Physical validation
+is deferred, not accepted; SPEC §148 remains in force.
+
+```sh
+cargo test --manifest-path preparation/Cargo.toml --locked --workspace --all-targets
+cargo fmt --manifest-path preparation/Cargo.toml --all -- --check
+cargo clippy --manifest-path preparation/Cargo.toml --locked --workspace --all-targets -- -D warnings
+```
+
+CI runs these checks and official Go/prepared-Rust CEK differential tests on Linux
+and Windows. The isolated time engine has no release authorization API; production
+NTS adapters require the [authenticated metadata issue](decisions/0006-nts-metadata-boundary.md)
+to be resolved and validated first. See the [implementation status](implementation-status.md)
+for completed work and remaining integration/acceptance requirements.

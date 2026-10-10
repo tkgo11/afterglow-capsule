@@ -36,3 +36,9 @@ Version 2 evidence tooling and immutable retry review are documented in
 [0003 — Phase 2 evidence](0003-phase2-evidence.md). Its automated validator
 requires independently reviewed provenance and genuine complete physical evidence.
 Old version 1 bundles remain historical evidence only.
+
+The [physical deferral decision](0005-deferred-physical-acceptance.md) permits
+isolated, tested preparation without accepting production phases. The
+[implementation status](../implementation-status.md) records the resulting code,
+tests and outstanding integration. The [NTS metadata issue](0006-nts-metadata-boundary.md)
+is an open API integration limit, not a specification change or a time unlock path.

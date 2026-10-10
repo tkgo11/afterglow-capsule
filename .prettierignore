@@ -9,3 +9,5 @@ node_modules/
 dist/
 coverage/
 Cargo.lock
+# Exact raw cargo-audit reports are hashed evidence, not editable source.
+docs/decisions/preparation-advisory-evidence/*-audit.json
