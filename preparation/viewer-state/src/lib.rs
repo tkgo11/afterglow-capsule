@@ -284,7 +284,10 @@ impl<'a> ViewerSession<'a> {
         };
         self.transition(State::Authenticating);
         let id = self.capsule.manifest.private_manifest_id;
-        let bytes = self.capsule.object(id)?;
+        let bytes = match self.capsule.object(id) {
+            Ok(bytes) => bytes,
+            Err(_) => return self.fail(Failure::PrivateFormat),
+        };
         let plaintext = match decrypt(&key, self.binding(id), bytes, self.capsule.limits()) {
             Ok(bytes) => bytes,
             Err(_) => return self.fail(Failure::ObjectIntegrity),

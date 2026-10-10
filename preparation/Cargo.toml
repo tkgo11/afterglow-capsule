@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["object-store", "object-crypto", "timelock", "capsule", "viewer-state"]
+members = ["object-store", "object-crypto", "timelock", "capsule", "viewer-state", "time"]
 
 [workspace.package]
 version = "0.1.0"

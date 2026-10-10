@@ -54,3 +54,10 @@ The [Viewer state engine](viewer-state/README.md) owns the cryptographic release
 sequence and keeps key access away from UI actions. Encrypted-capsule integration
 tests cover authenticated readiness, locked failures, ceremony gates and bounded
 entry/media navigation. This is not a running Viewer application.
+
+## Phase 7 pure preparation
+
+The [auxiliary time engine](time/README.md) checks provider provenance, compatible
+timescales, independent-operator interval consensus, confidence, monotonic drift,
+clock jumps and resume/reconnect/query behavior. Production network adapters are
+pending the documented authenticated-metadata API review.
