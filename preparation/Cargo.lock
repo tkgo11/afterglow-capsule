@@ -46,6 +46,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "ag-capsule"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "ag-prepared-capsule"
+version = "0.1.0"
+dependencies = [
+ "ag-capsule",
+ "ag-prepared-object-crypto",
+ "ag-prepared-object-store",
+ "ag-prepared-timelock",
+ "ag-schema",
+ "chrono",
+ "hex",
+ "semver",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "ag-prepared-object-crypto"
 version = "0.1.0"
 dependencies = [

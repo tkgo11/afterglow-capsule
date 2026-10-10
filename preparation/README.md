@@ -40,3 +40,10 @@ The [timelock adapter](timelock/README.md) checks the exact pinned round and
 reviewed chain parameters, verifies beacons locally and decrypts only a 32-byte
 CEK. Its relay race has no time-evidence authorization path. Production HTTP
 transport adoption and application integration remain gated.
+
+## Phase 5 portable preparation
+
+The [capsule assembler and reader](capsule/README.md) preserve the existing header,
+validate contiguous object stores and section/public-object digests, check the
+exact-round envelope and scan supplied private plaintext needles plus the CEK.
+PE injection, final EXE scanning/signing and clean-machine acceptance are deferred.
