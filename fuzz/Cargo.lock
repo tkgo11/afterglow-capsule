@@ -7,6 +7,7 @@ name = "afterglow-fuzz"
 version = "0.1.0"
 dependencies = [
  "ag-capsule",
+ "ag-prepared-object-store",
  "ag-project",
  "ag-schema",
  "libfuzzer-sys",
@@ -17,6 +18,14 @@ dependencies = [
 name = "ag-capsule"
 version = "0.1.0"
 dependencies = [
+ "thiserror",
+]
+
+[[package]]
+name = "ag-prepared-object-store"
+version = "0.1.0"
+dependencies = [
+ "ag-schema",
  "thiserror",
 ]
 

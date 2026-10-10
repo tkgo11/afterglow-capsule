@@ -17,6 +17,7 @@ thiserror.workspace = true
 semver.workspace = true
 
 [dev-dependencies]
+ag-prepared-time = { path = "../time" }
 ag-capsule.workspace = true
 serde_json.workspace = true
 chrono.workspace = true

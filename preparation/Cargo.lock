@@ -131,6 +131,7 @@ dependencies = [
  "ag-prepared-capsule",
  "ag-prepared-object-crypto",
  "ag-prepared-object-store",
+ "ag-prepared-time",
  "ag-prepared-timelock",
  "ag-schema",
  "chrono",

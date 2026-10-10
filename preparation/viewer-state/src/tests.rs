@@ -285,3 +285,40 @@ fn ceremony_requires_explicit_completion_and_enter_and_navigation_is_bounded() {
     }
     assert!(session.history().len() <= 64);
 }
+
+#[test]
+fn future_or_past_wall_clock_estimates_do_not_grant_release_capability() {
+    use ag_prepared_time::{Confidence, Provider, ProviderClass, Registry, TimeEngine, TimeScale};
+    let project = project(1000, |_| {});
+    for future in [true, false] {
+        let registry = Registry::new(vec![Provider {
+            provider_id: "local".into(),
+            operator_id: "local".into(),
+            timescale: TimeScale::Local,
+            class: ProviderClass::Local,
+        }])
+        .unwrap();
+        let mut time = TimeEngine::new(registry);
+        let wall = std::time::SystemTime::now();
+        let wall = if future {
+            wall + Duration::from_secs(86400)
+        } else {
+            wall - Duration::from_secs(86400)
+        };
+        let reading = time
+            .read(wall, Instant::now(), Duration::ZERO, false)
+            .unwrap();
+        assert_eq!(reading.utc, wall);
+        assert_eq!(reading.confidence, Confidence::LocalOnly);
+        let mut session = session(&project.bytes);
+        session.start().unwrap();
+        session.begin_release_check().unwrap();
+        session
+            .apply_release_result(FetchOutcome::Waiting(vec![]))
+            .unwrap();
+        assert_eq!(session.state(), &State::PreRelease);
+        assert!(session.start_ceremony().is_err());
+        assert!(session.archive_index().is_err());
+        assert!(session.cek.is_none());
+    }
+}

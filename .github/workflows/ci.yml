@@ -151,7 +151,7 @@ jobs:
         run: npm run build
 
   fuzz-harnesses:
-    name: Phase 1 parser fuzz harnesses
+    name: Core and prepared object parser fuzz harnesses
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -163,7 +163,7 @@ jobs:
       - run: cargo fmt --manifest-path fuzz/Cargo.toml --all -- --check
 
   fuzz-smoke:
-    name: Instrumented Phase 1 parser smoke
+    name: Instrumented core and prepared object parser smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

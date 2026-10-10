@@ -28,6 +28,14 @@ remains pinned to 1.90.0; the nightly is isolated development tooling. The
 committed fuzz lockfile is separate from the production workspace lockfile.
 `cargo check` only checks harness compilation; it is not an instrumented fuzz run.
 
-Add encrypted chunk, network response and timelock decoder targets alongside those
-implementations after the mandatory spikes, and complete hardening in Phase 12.
+The excluded prepared encrypted-object reader now has a separately named
+`prepared_encrypted_object` target. It parses borrowing records, exercises AAD and
+nonce construction and uses the independent public AES-GCM object vector as a
+structural seed. The smoke copies that seed into an ignored mutable corpus; it
+never mutates the committed fixture or uses creator files. The fifth target runs
+for 30 seconds with a 1 MiB input cap. It is preparation evidence and does not
+accept the production crypto phase or complete Phase 12.
+
+Add production network response and timelock decoder targets after their validated
+adoption, and complete the broader hardening requirements in Phase 12.
 Only public/synthetic seeds belong in a corpus; never use creator secrets.

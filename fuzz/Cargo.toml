@@ -12,6 +12,7 @@ libfuzzer-sys = "=0.4.13"
 ag-schema = { path = "../crates/ag-schema" }
 ag-project = { path = "../crates/ag-project" }
 ag-capsule = { path = "../crates/ag-capsule" }
+ag-prepared-object-store = { path = "../preparation/object-store" }
 semver = "=1.0.28"
 
 [[bin]]
@@ -43,3 +44,10 @@ doc = false
 bench = false
 
 [workspace]
+
+[[bin]]
+name = "prepared_encrypted_object"
+path = "fuzz_targets/prepared_encrypted_object.rs"
+test = false
+doc = false
+bench = false

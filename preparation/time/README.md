@@ -29,8 +29,8 @@ an hour, and at most once per minute in the final minute. No one-second polling.
 
 Tests cover quorums, aliases, authenticated disagreement, advisory outliers,
 excessive RTT/stale/spoofed samples, leap-smear exclusion, both one-day clock jumps,
-offline anchoring, resume/reconnect and quiet polling. Presentation timezone
-changes do not alter UTC samples.
+offline anchoring, resume/reconnect and quiet polling. The engine accepts UTC and
+monotonic values; presentation timezone is outside its input model.
 
 The [NTS metadata integration issue](../../docs/decisions/0006-nts-metadata-boundary.md)
 records why the Spike B high-level result cannot yet be promoted as a complete

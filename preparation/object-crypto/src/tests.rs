@@ -266,3 +266,56 @@ fn malformed_compressed_frame_is_rejected_after_authentication() {
     bytes[HEADER_SIZE + RECORD_SIZE + len..].copy_from_slice(&tag);
     assert!(matches!(open(&bytes), Err(CryptoError::Compression)));
 }
+
+fn authenticated_compressed_fixture(encoded: &[u8], original_length: u64) -> Vec<u8> {
+    let header = Header {
+        binding: binding(),
+        compression: Compression::Zstandard,
+        nonce_prefix: [7; 8],
+        chunk_size: DEFAULT_CHUNK_SIZE,
+        chunk_count: 1,
+        plaintext_length: original_length,
+        encoded_length: encoded.len() as u64,
+    };
+    let header_bytes = header.encode(Limits::default()).unwrap();
+    let mut record = [0; RECORD_SIZE];
+    record[4..8].copy_from_slice(&(encoded.len() as u32).to_le_bytes());
+    record[8..12].copy_from_slice(&(encoded.len() as u32).to_le_bytes());
+    let derived = object_key(&key(), binding()).unwrap();
+    let cipher = Aes256Gcm::new_from_slice(&*derived).unwrap();
+    let mut encrypted = encoded.to_vec();
+    let tag = cipher
+        .encrypt_in_place_detached(
+            Nonce::from_slice(&nonce([7; 8], 0)),
+            &aad(&header_bytes, &record),
+            &mut encrypted,
+        )
+        .unwrap();
+    [
+        header_bytes.as_slice(),
+        record.as_slice(),
+        encrypted.as_slice(),
+        tag.as_slice(),
+    ]
+    .concat()
+}
+
+#[test]
+fn authenticated_decompression_overflow_returns_no_plaintext() {
+    let encoded = zstd::bulk::compress(&vec![b'x'; 2048], 3).unwrap();
+    let bytes = authenticated_compressed_fixture(&encoded, 64);
+    assert!(matches!(open(&bytes), Err(CryptoError::Compression)));
+}
+
+#[test]
+fn authenticated_concatenated_or_trailing_compressed_frames_are_rejected() {
+    let encoded = zstd::bulk::compress(&vec![b'x'; 2048], 3).unwrap();
+    let mut concatenated = encoded.clone();
+    concatenated.extend_from_slice(&encoded);
+    let bytes = authenticated_compressed_fixture(&concatenated, 2048);
+    assert!(matches!(open(&bytes), Err(CryptoError::Compression)));
+    let mut trailing = encoded;
+    trailing.push(0);
+    let bytes = authenticated_compressed_fixture(&trailing, 2048);
+    assert!(matches!(open(&bytes), Err(CryptoError::Compression)));
+}

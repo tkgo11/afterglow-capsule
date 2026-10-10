@@ -283,14 +283,15 @@ fn query_frequency_does_not_hammer_near_release_and_minimized_is_quiet() {
 }
 
 #[test]
-fn no_network_is_local_only_and_a_timezone_presentation_change_has_no_effect() {
+fn offline_without_anchor_remains_local_only_with_explicit_uncertainty() {
     let now = Instant::now();
     let wall = sample("a", 0, now).estimated_utc;
     let mut engine = TimeEngine::new(registry());
     let first = engine.read(wall, now, Duration::ZERO, false).unwrap();
-    let second = engine.read(wall, now, Duration::ZERO, false).unwrap();
-    assert_eq!(first.utc, second.utc);
+    assert_eq!(first.utc, wall);
     assert_eq!(first.confidence, Confidence::LocalOnly);
+    assert_eq!(first.uncertainty, Duration::from_secs(24 * 3600));
+    assert!(first.query_due);
 }
 
 #[test]
