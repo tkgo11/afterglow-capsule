@@ -28,13 +28,14 @@ jobs:
           cargo fetch --locked
           cargo fetch --manifest-path spikes/Cargo.toml --locked
           cargo fetch --manifest-path fuzz/Cargo.toml --locked
+          cargo fetch --manifest-path preparation/Cargo.toml --locked
       - run: cargo install cargo-audit --version 0.22.2 --locked --no-default-features
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: RustSec/advisory-db
           path: advisory-db
           persist-credentials: false
-      - name: Scan all three locks without advisory or platform exclusions
+      - name: Scan every lock without advisory or platform exclusions
         run: python scripts/check_advisories.py --db advisory-db --output dependency-evidence
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: ${{ !cancelled() }}
@@ -74,6 +75,24 @@ jobs:
           path: dependency-evidence/
           if-no-files-found: error
           retention-days: 14
+
+  preparation:
+    name: Unaccepted software preparation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - run: cargo test --manifest-path preparation/Cargo.toml --locked --workspace --all-targets
+      - run: cargo fmt --manifest-path preparation/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path preparation/Cargo.toml --locked --workspace --all-targets -- -D warnings
 
   bootstrap:
     name: Bootstrap (${{ matrix.os }})

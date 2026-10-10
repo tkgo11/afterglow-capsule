@@ -7,7 +7,8 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCKS = {"root": "Cargo.lock", "spikes": "spikes/Cargo.lock", "fuzz": "fuzz/Cargo.lock"}
+LOCKS = {"root": "Cargo.lock", "spikes": "spikes/Cargo.lock", "fuzz": "fuzz/Cargo.lock",
+         "preparation": "preparation/Cargo.lock"}
 VERSION = "cargo-audit 0.22.2"
 
 

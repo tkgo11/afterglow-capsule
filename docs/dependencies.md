@@ -135,3 +135,24 @@ remain available with ZIP SHA-256
 CI now fetches all three locked graphs before
 scanning, preserves those earlier raw reports, and rejects this zero-exit partial
 failure. No advisory exclusion or skipped yank check is used to hide it.
+
+## Isolated Phase 3 preparation — not production adoption
+
+These candidates are confined to the excluded `preparation/` workspace. The
+production dependency graph remains unchanged. Exact registry metadata/license
+and feature selections were inspected; no comprehensive audit endorsement is
+claimed. Advisory CI now includes this fourth locked graph without exclusions.
+
+| Candidate | Version | License           | Upstream                                    | Reason and security-review limit                                                                                                                    |
+| --------- | ------- | ----------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| aes-gcm   | 0.10.3  | MIT OR Apache-2.0 | https://github.com/RustCrypto/AEADs         | Standard AES-256-GCM; independent Python vector and mutation/failure tests. Existing stable API, not a custom cipher.                               |
+| aes       | 0.8.4   | MIT OR Apache-2.0 | https://github.com/RustCrypto/block-ciphers | Enables AES schedule zeroization explicitly; aes-gcm's own zeroize feature does not enable this transitively.                                       |
+| hkdf      | 0.12.4  | MIT OR Apache-2.0 | https://github.com/RustCrypto/KDFs          | HKDF-SHA256; independent object-key vector.                                                                                                         |
+| sha2      | 0.10.9  | MIT OR Apache-2.0 | https://github.com/RustCrypto/hashes        | SHA-256, same evaluated version as isolated spike tooling.                                                                                          |
+| getrandom | 0.4.3   | MIT OR Apache-2.0 | https://github.com/rust-random/getrandom    | OS CSPRNG, explicit error propagation; no fallback PRNG.                                                                                            |
+| zeroize   | 1.9.0   | MIT OR Apache-2.0 | https://github.com/RustCrypto/utils         | Non-cloneable redacted CEK, derived keys and temporary plaintext buffers; codec/OS copies are not guaranteed erased.                                |
+| zstd      | 0.13.3  | MIT               | https://github.com/gyscos/zstd-rs           | Compression measured before encryption; authenticated decoding with output/window bounds and one-frame limit. Native codec exercised in Windows CI. |
+
+Candidate API-line pins preserve the reviewed vectors and zeroization features.
+Newer major/API lines require independent review rather than silently changing
+the record. Timelock/NTS and GPU/PE production adoption is still gated.

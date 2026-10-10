@@ -3,6 +3,7 @@
 /fuzz/artifacts/
 /fuzz/corpus/
 /spikes/target/
+/preparation/target/
 /spikes/timelock/go/spike-a-reference
 /spikes/timelock/go/spike-a-reference.exe
 /node_modules/

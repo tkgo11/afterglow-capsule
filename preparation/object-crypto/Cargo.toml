@@ -1,0 +1,25 @@
+[package]
+name = "ag-prepared-object-crypto"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ag-schema.workspace = true
+ag-prepared-object-store.workspace = true
+aes-gcm = { version = "=0.10.3", features = ["zeroize"] }
+aes = { version = "=0.8.4", features = ["zeroize"] }
+hkdf = "=0.12.4"
+sha2.workspace = true
+getrandom = "=0.4.3"
+zeroize.workspace = true
+zstd = { version = "=0.13.3", default-features = false }
+thiserror.workspace = true
+
+[dev-dependencies]
+hex = "=0.4.3"
+serde_json.workspace = true
+
+[lints]
+workspace = true

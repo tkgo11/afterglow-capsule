@@ -40,6 +40,14 @@ class BootstrapTests(unittest.TestCase):
                 f"isolated spike entered production graph: {package['name']}",
             )
 
+    def test_unaccepted_preparation_cannot_enter_production_graph(self):
+        preparation = ROOT / "preparation"
+        for package in self.metadata["packages"]:
+            self.assertFalse(
+                pathlib.Path(package["manifest_path"]).resolve().is_relative_to(preparation),
+                f"unaccepted preparation entered production graph: {package['name']}",
+            )
+
     def test_viewer_dependency_closure_has_no_creator_application_or_packager(self):
         nodes = {n["id"]: n for n in self.metadata["resolve"]["nodes"]}
         pending = [self.packages["afterglow-viewer"]["id"]]

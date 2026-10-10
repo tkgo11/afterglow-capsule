@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["apps/builder", "apps/viewer", "crates/*"]
-exclude = ["fuzz", "spikes"]
+exclude = ["fuzz", "spikes", "preparation"]
 
 [workspace.package]
 version = "0.1.0"

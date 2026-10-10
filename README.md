@@ -80,6 +80,11 @@ Clean recipient VM, shell icon and physical GPU acceptance remain outstanding.
 Phase 2 remains blocked and production Phases 3–12 have not begun. Downloadable
 spike executables and the [manual protocol](spikes/manual/README.md) support those checks.
 
+User-dependent physical execution is deferred. Independent later-phase software
+preparation is tested in the excluded [preparation workspace](preparation/README.md).
+Neither production application depends on it; prepared code does not accept a
+phase or bypass the mandatory evidence gate.
+
 See [docs/development.md](docs/development.md) for toolchains and validation commands
 and [docs/decisions/](docs/decisions/README.md) for decisions and mandatory spike status.
 
