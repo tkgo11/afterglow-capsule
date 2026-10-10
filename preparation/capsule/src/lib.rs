@@ -1,5 +1,7 @@
 //! Isolated capsule serialization/validation, with no PE or signing adoption.
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use ag_capsule::{CapsuleHeader, FORMAT_VERSION, HEADER_SIZE, Section, SectionKind};
 use ag_prepared_object_crypto::{BuildEncryptor, CompressionPolicy, CryptoError};
 use ag_prepared_object_store::{Binding, EncryptedObject, Limits};
@@ -45,7 +47,8 @@ pub enum CapsuleError {
 
 /// Fully validated structure and digests, not release authorization.
 pub struct LoadedCapsule<'a> {
-    pub manifest: Manifest,
+    manifest: Manifest,
+    object_index: BTreeMap<StableId, usize>,
     public_store: &'a [u8],
     private_store: &'a [u8],
     envelope: &'a [u8],
@@ -112,8 +115,15 @@ impl<'a> LoadedCapsule<'a> {
             public_store.len() as u64,
             private_store.len() as u64,
         )?;
+        let object_index = manifest
+            .objects
+            .iter()
+            .enumerate()
+            .map(|(index, object)| (object.object_id, index))
+            .collect();
         let capsule = Self {
             manifest,
+            object_index,
             public_store,
             private_store,
             envelope,
@@ -181,12 +191,7 @@ impl<'a> LoadedCapsule<'a> {
     }
 
     pub fn object(&self, id: StableId) -> Result<&'a [u8], CapsuleError> {
-        let object = self
-            .manifest
-            .objects
-            .iter()
-            .find(|o| o.object_id == id)
-            .ok_or(CapsuleError::Metadata)?;
+        let object = self.metadata(id).ok_or(CapsuleError::Metadata)?;
         let source = if object.class.is_private() {
             self.private_store
         } else {
@@ -205,6 +210,14 @@ impl<'a> LoadedCapsule<'a> {
     pub fn limits(&self) -> Limits {
         self.limits
     }
+    pub fn manifest(&self) -> &Manifest {
+        &self.manifest
+    }
+    pub fn metadata(&self, id: StableId) -> Option<&ObjectMetadata> {
+        self.object_index
+            .get(&id)
+            .map(|index| &self.manifest.objects[*index])
+    }
 }
 
 pub struct CapsuleAssembler {
@@ -214,6 +227,7 @@ pub struct CapsuleAssembler {
     public_store: Vec<u8>,
     private_store: Vec<u8>,
     limits: Limits,
+    object_ids: BTreeSet<StableId>,
 }
 
 impl CapsuleAssembler {
@@ -231,6 +245,7 @@ impl CapsuleAssembler {
             public_store: Vec::new(),
             private_store: Vec::new(),
             limits,
+            object_ids: BTreeSet::new(),
         })
     }
 
@@ -252,13 +267,11 @@ impl CapsuleAssembler {
         class: ObjectClass,
         bytes: &[u8],
     ) -> Result<(), CapsuleError> {
-        if class.is_private()
-            || bytes.is_empty()
-            || self.manifest.objects.iter().any(|o| o.object_id == id)
-        {
+        if class.is_private() || bytes.is_empty() || self.object_ids.contains(&id) {
             return Err(CapsuleError::Metadata);
         }
         self.reserve(bytes.len())?;
+        self.object_ids.insert(id);
         self.manifest.objects.push(ObjectMetadata {
             object_id: id,
             class,
@@ -281,13 +294,14 @@ impl CapsuleAssembler {
         bytes: &[u8],
         policy: CompressionPolicy,
     ) -> Result<(), CapsuleError> {
-        if !class.is_private() || self.manifest.objects.iter().any(|o| o.object_id == id) {
+        if !class.is_private() || self.object_ids.contains(&id) {
             return Err(CapsuleError::Metadata);
         }
         self.reserve(0)?;
         let encrypted = self.encryptor.encrypt(id, bytes, policy)?;
         self.reserve(encrypted.len())?;
         let object = EncryptedObject::parse(&encrypted, self.limits)?;
+        self.object_ids.insert(id);
         self.manifest.objects.push(ObjectMetadata {
             object_id: id,
             class,

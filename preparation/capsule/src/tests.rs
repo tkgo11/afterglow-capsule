@@ -196,3 +196,54 @@ fn plaintext_scan_blocks_actual_private_needles_and_empty_checks() {
     )
     .unwrap();
 }
+
+#[test]
+fn large_shuffled_object_table_preserves_exact_indexed_readback() {
+    let manifest = fixtures::manifest();
+    let private_id = manifest.private_manifest_id;
+    let mut assembler = CapsuleAssembler::new(manifest, Limits::default()).unwrap();
+    assembler
+        .add_private(
+            private_id,
+            ObjectClass::PrivateJson,
+            b"{}",
+            CompressionPolicy::None,
+        )
+        .unwrap();
+    let mut expected = Vec::new();
+    for index in 0_u32..4096 {
+        let id = StableId::random();
+        let bytes = index.to_le_bytes();
+        assembler
+            .add_public(id, ObjectClass::PublicImage, &bytes)
+            .unwrap();
+        expected.push((id, bytes));
+    }
+    let bytes = assembler
+        .finish(&semver::Version::new(0, 1, 0), &[])
+        .unwrap();
+    let loaded =
+        LoadedCapsule::parse(&bytes, &semver::Version::new(0, 1, 0), Limits::default()).unwrap();
+    // Legal table order is independent of physical offsets and index order.
+    let mut shuffled = loaded.manifest().clone();
+    shuffled.objects.reverse();
+    let rebuilt = serialize(
+        &shuffled,
+        loaded.public_store,
+        loaded.private_store,
+        loaded.envelope(),
+        Limits::default(),
+    )
+    .unwrap();
+    let loaded =
+        LoadedCapsule::parse(&rebuilt, &semver::Version::new(0, 1, 0), Limits::default()).unwrap();
+    for (id, bytes) in expected {
+        assert_eq!(loaded.object(id).unwrap(), bytes);
+        assert_eq!(loaded.metadata(id).unwrap().object_id, id);
+    }
+    assert!(loaded.object(StableId::random()).is_err());
+    // Editing a creator-owned clone does not alter validated metadata/readback.
+    shuffled.objects.clear();
+    assert_eq!(loaded.manifest().objects.len(), 4097);
+    assert!(loaded.object(private_id).is_ok());
+}

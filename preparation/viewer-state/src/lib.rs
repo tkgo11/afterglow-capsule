@@ -203,7 +203,7 @@ impl<'a> ViewerSession<'a> {
         limits: Limits,
     ) -> Result<Self, SessionError> {
         let capsule = LoadedCapsule::parse(bytes, viewer, limits)?;
-        let engine = QuicknetEngine::new(capsule.manifest.release.clone())?;
+        let engine = QuicknetEngine::new(capsule.manifest().release.clone())?;
         Ok(Self {
             capsule,
             engine,
@@ -223,7 +223,7 @@ impl<'a> ViewerSession<'a> {
         &self.history
     }
     pub fn manifest(&self) -> &ag_schema::Manifest {
-        &self.capsule.manifest
+        self.capsule.manifest()
     }
 
     fn transition(&mut self, state: State) {
@@ -283,7 +283,7 @@ impl<'a> ViewerSession<'a> {
             Err(_) => return self.fail(Failure::ReleaseIntegrity),
         };
         self.transition(State::Authenticating);
-        let id = self.capsule.manifest.private_manifest_id;
+        let id = self.capsule.manifest().private_manifest_id;
         let bytes = match self.capsule.object(id) {
             Ok(bytes) => bytes,
             Err(_) => return self.fail(Failure::PrivateFormat),
@@ -296,8 +296,8 @@ impl<'a> ViewerSession<'a> {
             Ok(index) => index.data,
             Err(_) => return self.fail(Failure::PrivateFormat),
         };
-        if index.project_id != self.capsule.manifest.project_id
-            || index.build_id != self.capsule.manifest.build_id
+        if index.project_id != self.capsule.manifest().project_id
+            || index.build_id != self.capsule.manifest().build_id
             || index
                 .contributors
                 .iter()
@@ -317,18 +317,16 @@ impl<'a> ViewerSession<'a> {
 
     fn binding(&self, object_id: StableId) -> Binding {
         Binding {
-            project_id: self.capsule.manifest.project_id,
-            build_id: self.capsule.manifest.build_id,
+            project_id: self.capsule.manifest().project_id,
+            build_id: self.capsule.manifest().build_id,
             object_id,
         }
     }
 
     fn is_class(&self, id: StableId, class: ObjectClass) -> bool {
         self.capsule
-            .manifest
-            .objects
-            .iter()
-            .any(|o| o.object_id == id && o.class == class)
+            .metadata(id)
+            .is_some_and(|object| object.class == class)
     }
 
     pub fn start_ceremony(&mut self) -> Result<(), SessionError> {

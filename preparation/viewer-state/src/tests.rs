@@ -238,14 +238,14 @@ fn maliciously_rehashed_private_corruption_cannot_reach_ready_or_ceremony() {
         .unwrap()
         .to_vec();
     let metadata = loaded
-        .manifest
+        .manifest()
         .objects
         .iter()
-        .find(|o| o.object_id == loaded.manifest.private_manifest_id)
+        .find(|o| o.object_id == loaded.manifest().private_manifest_id)
         .unwrap();
     private[(metadata.offset + metadata.length - 1) as usize] ^= 1;
     let bytes = serialize(
-        &loaded.manifest,
+        loaded.manifest(),
         public,
         &private,
         loaded.envelope(),
