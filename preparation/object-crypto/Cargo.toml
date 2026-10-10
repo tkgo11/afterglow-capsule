@@ -10,6 +10,8 @@ ag-schema.workspace = true
 ag-prepared-object-store.workspace = true
 aes-gcm = { version = "=0.10.3", features = ["zeroize"] }
 aes = { version = "=0.8.4", features = ["zeroize"] }
+ghash = { version = "=0.5.1", features = ["zeroize"] }
+polyval = { version = "=0.6.2", features = ["zeroize"] }
 hkdf = "=0.12.4"
 sha2.workspace = true
 getrandom = "=0.4.3"

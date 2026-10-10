@@ -33,3 +33,10 @@ does not guarantee erasure of allocator, OS, codec or debugger copies.
 `object-store` documents and reads the [bounded binary record](object-store/README.md).
 Its fixed public test vector was independently generated with Python cryptography
 50.0.0. Vector keys are public fixtures, never production runtime inputs.
+
+## Phase 4 preparation
+
+The [timelock adapter](timelock/README.md) checks the exact pinned round and
+reviewed chain parameters, verifies beacons locally and decrypts only a 32-byte
+CEK. Its relay race has no time-evidence authorization path. Production HTTP
+transport adoption and application integration remain gated.

@@ -154,5 +154,16 @@ claimed. Advisory CI now includes this fourth locked graph without exclusions.
 | zstd      | 0.13.3  | MIT               | https://github.com/gyscos/zstd-rs           | Compression measured before encryption; authenticated decoding with output/window bounds and one-frame limit. Native codec exercised in Windows CI. |
 
 Candidate API-line pins preserve the reviewed vectors and zeroization features.
+Explicit zeroize features also select `ghash 0.5.1` and `polyval 0.6.2`
+(MIT OR Apache-2.0, https://github.com/RustCrypto/universal-hashes). Upstream
+source confirms cleanup of supported x64 GHASH/POLYVAL key/state buffers. These
+features are not enabled transitively by aes-gcm. HMAC/codec/OS copies are still
+outside the application's erasure guarantee.
 Newer major/API lines require independent review rather than silently changing
 the record. Timelock/NTS and GPU/PE production adoption is still gated.
+
+The prepared timelock adapter reuses the exact Spike A candidates and Tokio pin
+listed above. Its new wrapper is checked independently against Go in both CEK
+directions; wrapper tests do not inherit acceptance merely from Spike A. The
+same visible `proc-macro-error2` maintenance warning also applies to this isolated
+candidate graph. It is not suppressed or described as resolved.
