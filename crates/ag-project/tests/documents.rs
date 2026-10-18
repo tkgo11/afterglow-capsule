@@ -121,3 +121,43 @@ fn drafts_can_be_incomplete_but_reviewed_contributors_must_meet_the_schema() {
         .insert("name".into(), serde_json::json!("A contributor"));
     project.validate_as(WORKSPACE_FORMAT).unwrap();
 }
+
+#[test]
+fn reviewed_contributors_cannot_satisfy_required_lists_with_empty_arrays() {
+    for field_type in [FieldType::MultiSelect, FieldType::TagList] {
+        let mut project = project();
+        project.data.schema.data.fields.push(FieldDefinition {
+            id: "list".into(),
+            label: "Required list".into(),
+            field_type,
+            visibility: Visibility::PrivateEncrypted,
+            required: true,
+            choices: if field_type == FieldType::MultiSelect {
+                vec!["item".into()]
+            } else {
+                vec![]
+            },
+        });
+        let contributor = &mut project.data.contributors[0].data;
+        contributor
+            .fields
+            .insert("list".into(), serde_json::json!([]));
+        project.validate_as(WORKSPACE_FORMAT).unwrap();
+
+        project.data.contributors[0].data.status = ContributorStatus::Approved;
+        assert!(project.validate_as(WORKSPACE_FORMAT).is_err());
+
+        project.data.contributors[0]
+            .data
+            .fields
+            .insert("list".into(), serde_json::json!(["item"]));
+        project.validate_as(WORKSPACE_FORMAT).unwrap();
+
+        project.data.schema.data.fields[0].required = false;
+        project.data.contributors[0]
+            .data
+            .fields
+            .insert("list".into(), serde_json::json!([]));
+        project.validate_as(WORKSPACE_FORMAT).unwrap();
+    }
+}

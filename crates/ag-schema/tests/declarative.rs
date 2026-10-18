@@ -200,3 +200,40 @@ fn declarative_content_round_trips_and_never_accepts_executable_nodes_or_link_sc
         .is_err()
     );
 }
+
+#[test]
+fn image_blocks_require_descriptive_alternatives_for_every_image() {
+    let id = StableId::random();
+    let blocks = [
+        ContentBlock::Image {
+            object_id: id,
+            alt: String::new(),
+        },
+        ContentBlock::Image {
+            object_id: id,
+            alt: " \t\n ".into(),
+        },
+        ContentBlock::ImagePair {
+            object_ids: [id, id],
+            alt: [String::new(), "Right".into()],
+        },
+        ContentBlock::ImagePair {
+            object_ids: [id, id],
+            alt: ["Left".into(), " \t ".into()],
+        },
+        ContentBlock::Gallery {
+            object_ids: vec![id],
+            alt: vec![String::new()],
+        },
+        ContentBlock::Gallery {
+            object_ids: vec![id, id, id],
+            alt: vec!["First".into(), " \n ".into(), "Third".into()],
+        },
+    ];
+    for block in blocks {
+        assert_eq!(
+            block.validate().unwrap_err().to_string(),
+            "invalid image alternative text"
+        );
+    }
+}

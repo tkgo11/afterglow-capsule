@@ -11,6 +11,13 @@ struct ProjectFixture {
 }
 
 fn project(round: u64, index_change: impl FnOnce(&mut Document<ArchiveIndex>)) -> ProjectFixture {
+    project_with_index_id(round, |index, _| index_change(index))
+}
+
+fn project_with_index_id(
+    round: u64,
+    index_change: impl FnOnce(&mut Document<ArchiveIndex>, StableId),
+) -> ProjectFixture {
     let mut manifest = fixtures::manifest();
     manifest.release = fixtures::release(round);
     let profile_id = StableId::random();
@@ -35,7 +42,7 @@ fn project(round: u64, index_change: impl FnOnce(&mut Document<ArchiveIndex>)) -
         },
     )
     .unwrap();
-    index_change(&mut archive);
+    index_change(&mut archive, manifest.private_manifest_id);
     let index_bytes = serde_json::to_vec(&archive).unwrap();
     let entry = Document::new(
         ENTRY_FORMAT,
@@ -209,6 +216,32 @@ fn private_index_version_and_project_binding_fail_closed_after_real_decryption()
         assert!(session.apply_release_result(verified()).is_err());
         assert_eq!(session.state(), &State::LockedError(Failure::PrivateFormat));
         assert!(session.cek.is_none());
+    }
+}
+
+#[test]
+fn archive_index_cannot_be_its_own_entry_or_contributor_profile() {
+    let projects = [
+        project_with_index_id(1000, |index, private_manifest_id| {
+            index.data.entries[0].object_id = private_manifest_id;
+        }),
+        project_with_index_id(1000, |index, private_manifest_id| {
+            index.data.contributors[0].profile_object_id = private_manifest_id;
+        }),
+    ];
+    for project in projects {
+        let mut session = session(&project.bytes);
+        session.start().unwrap();
+        session.begin_release_check().unwrap();
+        assert!(matches!(
+            session.apply_release_result(verified()),
+            Err(SessionError::Locked(Failure::PrivateFormat))
+        ));
+        assert_eq!(session.state(), &State::LockedError(Failure::PrivateFormat));
+        assert!(!session.history().contains(&State::ReadyForCeremony));
+        assert!(session.start_ceremony().is_err());
+        assert!(session.cek.is_none());
+        assert!(session.archive.is_none());
     }
 }
 

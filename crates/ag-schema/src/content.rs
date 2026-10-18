@@ -115,12 +115,21 @@ impl Validate for ContentBlock {
             | Self::Caption { content }
             | Self::Callout { content }
             | Self::Credits { content } => validate_text(content),
+            Self::Image { alt, .. } => nonempty(alt, "image alternative text"),
+            Self::ImagePair { alt, .. } => {
+                for text in alt {
+                    nonempty(text, "image alternative text")?;
+                }
+                Ok(())
+            }
             Self::Gallery { object_ids, alt } => {
                 if object_ids.is_empty() || object_ids.len() != alt.len() {
-                    Err(SchemaError::Invalid("gallery alternatives"))
-                } else {
-                    Ok(())
+                    return Err(SchemaError::Invalid("gallery alternatives"));
                 }
+                for text in alt {
+                    nonempty(text, "image alternative text")?;
+                }
+                Ok(())
             }
             Self::Timeline { items } => {
                 for item in items {

@@ -164,13 +164,17 @@ impl CustomSchema {
                 }
                 continue;
             };
-            validate_field_value(field, value)?;
+            validate_field_value(field, value, require_complete)?;
         }
         Ok(())
     }
 }
 
-fn validate_field_value(field: &FieldDefinition, value: &Value) -> Result<(), SchemaError> {
+fn validate_field_value(
+    field: &FieldDefinition,
+    value: &Value,
+    require_complete: bool,
+) -> Result<(), SchemaError> {
     let strings = || {
         value
             .as_array()
@@ -201,6 +205,9 @@ fn validate_field_value(field: &FieldDefinition, value: &Value) -> Result<(), Sc
         FieldType::MultiSelect => {
             strings()
                 && value.as_array().is_some_and(|items| {
+                    if field.required && require_complete && items.is_empty() {
+                        return false;
+                    }
                     let mut seen = HashSet::new();
                     items.iter().all(|v| {
                         v.as_str()
@@ -212,7 +219,12 @@ fn validate_field_value(field: &FieldDefinition, value: &Value) -> Result<(), Sc
         FieldType::Image | FieldType::HiddenId => {
             value.as_str().is_some_and(|s| StableId::parse(s).is_ok())
         }
-        FieldType::TagList => strings(),
+        FieldType::TagList => {
+            strings()
+                && value
+                    .as_array()
+                    .is_some_and(|items| !field.required || !require_complete || !items.is_empty())
+        }
         FieldType::Url => value.as_str().is_some_and(valid_external_url),
     };
     if valid {

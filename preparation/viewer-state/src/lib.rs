@@ -298,14 +298,14 @@ impl<'a> ViewerSession<'a> {
         };
         if index.project_id != self.capsule.manifest().project_id
             || index.build_id != self.capsule.manifest().build_id
-            || index
-                .contributors
-                .iter()
-                .any(|c| !self.is_class(c.profile_object_id, ObjectClass::PrivateJson))
+            || index.contributors.iter().any(|c| {
+                c.profile_object_id == id
+                    || !self.is_class(c.profile_object_id, ObjectClass::PrivateJson)
+            })
             || index
                 .entries
                 .iter()
-                .any(|e| !self.is_class(e.object_id, ObjectClass::PrivateJson))
+                .any(|e| e.object_id == id || !self.is_class(e.object_id, ObjectClass::PrivateJson))
         {
             return self.fail(Failure::PrivateFormat);
         }
