@@ -118,21 +118,29 @@ try {
     if (@(Get-ChildItem -LiteralPath $Scratch -Force).Count -ne 0) { throw 'New scratch directory is not empty.' }
     $Standalone = Join-Path $Scratch 'SpikeC-Standalone.exe'
     Copy-Item -LiteralPath $Exe -Destination $Standalone
+    $CapsuleBytes = $null
     foreach ($Kind in @('capsule','icon','group-icon','version')) {
         $Bytes = [AfterglowSpikeCNative]::ReadResource($Standalone, $Scratch, $Kind)
         $Digest = Get-SpikeCSha256 $Bytes
         if ($Digest -ne $Expected.resource_sha256.$Kind) { throw "Embedded resource checksum differs for $Kind." }
         $Result.resource_sha256[$Kind] = $Digest
+        if ($Kind -eq 'capsule') { $CapsuleBytes = $Bytes }
     }
     $Version = [Diagnostics.FileVersionInfo]::GetVersionInfo($Standalone)
     $Result.file_version = '{0}.{1}.{2}.{3}' -f $Version.FileMajorPart,$Version.FileMinorPart,$Version.FileBuildPart,$Version.FilePrivatePart
     if ($Result.file_version -ne '2.0.0.0') { throw 'Native Windows version differs from 2.0.0.0.' }
+    # Empty arguments exercise the recipient's actual default launch. The native
+    # runner bounds runtime and both streams, and rejects nonzero exits/stderr.
+    $DefaultOutput = [AfterglowSpikeCNative]::ReadResource($Standalone, $Scratch, '')
+    if ($DefaultOutput.Length -ne $CapsuleBytes.Length -or (Get-SpikeCSha256 $DefaultOutput) -ne $Expected.resource_sha256.capsule) {
+        throw 'Default standalone launch output differs from the expected capsule.'
+    }
     if ((Get-FileHash -LiteralPath $Standalone -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Result.exe_sha256) { throw 'Standalone execution changed EXE bytes.' }
     $Contents = @(Get-ChildItem -LiteralPath $Scratch -Force)
     if ($Contents.Count -ne 1 -or $Contents[0].Name -ne 'SpikeC-Standalone.exe') { throw 'Standalone execution generated unexpected project sidecars.' }
     $Result.one_file_execution = 'passed'
     # Verification inputs/evidence copies do not become recipient runtime sidecars.
-    # The executable was already exercised alone in a newly empty directory.
+    # The executable was launched without arguments alone in a newly empty directory.
     foreach ($Name in @('SpikeC-Standalone.exe','spike-c-expected.json')) {
         $Source = Join-Path $ArtifactDirectory $Name
         $Destination = Join-Path $ReportFolder $Name

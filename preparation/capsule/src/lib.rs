@@ -148,7 +148,10 @@ impl<'a> LoadedCapsule<'a> {
                 ObjectProtection::Public { sha256 } => {
                     if metadata.plaintext_length != metadata.length
                         || metadata.compression != ag_schema::Compression::None
-                        || *sha256 != hex::encode(Sha256::digest(bytes))
+                        || hex::decode(sha256)
+                            .map_err(|_| CapsuleError::Digest)?
+                            .as_slice()
+                            != &Sha256::digest(bytes)[..]
                     {
                         return Err(CapsuleError::Digest);
                     }

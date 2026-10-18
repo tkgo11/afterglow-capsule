@@ -100,6 +100,9 @@ fn pinned_release_rejects_zero_wrong_round_wrong_profile_timezone_and_insecure_r
         "https://user:password@relay.example",
         "https://relay.example/?project=unique",
         "https://relay.example/#fragment",
+        "https://relay.example/project-unique",
+        "https://relay.example/base/project-unique/",
+        "https://relay.example/%70roject-unique",
     ] {
         let mut value = manifest_value();
         value["release"]["network"]["relays"][0] = json!(relay);
@@ -108,6 +111,9 @@ fn pinned_release_rejects_zero_wrong_round_wrong_profile_timezone_and_insecure_r
     let mut value = manifest_value();
     value["release"]["network"]["period_seconds"] = json!(0);
     assert!(read_manifest(&value).is_err());
+    let mut value = manifest_value();
+    value["release"]["network"]["relays"][0] = json!("https://relay.example/");
+    assert!(read_manifest(&value).is_ok());
 }
 
 #[test]

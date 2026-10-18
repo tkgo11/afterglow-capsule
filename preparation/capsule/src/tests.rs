@@ -162,6 +162,63 @@ fn rebuilt_digests_do_not_hide_metadata_binding_or_public_hash_mismatch() {
 }
 
 #[test]
+fn valid_public_digest_casing_loads_and_invalid_digest_stays_rejected() {
+    let bytes = capsule();
+    let loaded =
+        LoadedCapsule::parse(&bytes, &semver::Version::new(0, 1, 0), Limits::default()).unwrap();
+    let original = match &loaded.manifest.objects[1].protection {
+        ObjectProtection::Public { sha256 } => sha256.clone(),
+        _ => panic!("fixture must contain a public object"),
+    };
+    assert!(original.chars().any(|ch| ch.is_ascii_lowercase()));
+    for sha256 in [
+        original.to_ascii_uppercase(),
+        original
+            .chars()
+            .enumerate()
+            .map(|(index, ch)| {
+                if index % 2 == 0 {
+                    ch.to_ascii_uppercase()
+                } else {
+                    ch
+                }
+            })
+            .collect(),
+    ] {
+        let mut manifest = loaded.manifest.clone();
+        manifest.objects[1].protection = ObjectProtection::Public { sha256 };
+        let rebuilt = serialize(
+            &manifest,
+            loaded.public_store,
+            loaded.private_store,
+            loaded.envelope,
+            Limits::default(),
+        )
+        .unwrap();
+        let parsed =
+            LoadedCapsule::parse(&rebuilt, &semver::Version::new(0, 1, 0), Limits::default());
+        assert!(parsed.is_ok(), "valid hex casing must load");
+    }
+
+    let mut manifest = loaded.manifest.clone();
+    manifest.objects[1].protection = ObjectProtection::Public {
+        sha256: "FF".repeat(32),
+    };
+    let rebuilt = serialize(
+        &manifest,
+        loaded.public_store,
+        loaded.private_store,
+        loaded.envelope,
+        Limits::default(),
+    )
+    .unwrap();
+    assert!(matches!(
+        LoadedCapsule::parse(&rebuilt, &semver::Version::new(0, 1, 0), Limits::default()),
+        Err(CapsuleError::Digest)
+    ));
+}
+
+#[test]
 fn private_class_cannot_enter_public_store_and_duplicate_ids_fail() {
     let manifest = fixtures::manifest();
     let id = manifest.private_manifest_id;

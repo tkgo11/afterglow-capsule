@@ -106,7 +106,7 @@ fn raw(root: &Path, cell: &Value) -> Result<()> {
     let mut start = None;
     let mut samples = vec![];
     let mut complete = None;
-    let mut seen_inventory = false;
+    let mut inventory = None;
     for line in source.lines().filter(|line| !line.trim().is_empty()) {
         if line.len() > 65536 {
             return Err("probe record exceeds 64 KiB".into());
@@ -114,12 +114,15 @@ fn raw(root: &Path, cell: &Value) -> Result<()> {
         let event = parse(line.as_bytes())?;
         document(&event, "afterglow-spike-d-event")?;
         match text(&event, "event")? {
-            "adapter_inventory" if !seen_inventory && start.is_none() => {
-                seen_inventory = true;
+            "adapter_inventory" if inventory.is_none() && start.is_none() => {
                 let a = array(&event, "adapters")?;
                 if a.is_empty() || a.len() > 64 {
                     return Err("invalid adapter inventory".into());
                 }
+                inventory = Some(event);
+            }
+            "start" if inventory.is_none() => {
+                return Err("probe adapter inventory event missing before start".into());
             }
             "start" if start.is_none() && samples.is_empty() && complete.is_none() => {
                 start = Some(event);
@@ -133,6 +136,7 @@ fn raw(root: &Path, cell: &Value) -> Result<()> {
         }
     }
     let start = start.ok_or("probe start event missing")?;
+    let inventory = inventory.ok_or("probe adapter inventory event missing")?;
     for key in [
         "requested_gpu_class",
         "requested_dpi_percent",
@@ -145,6 +149,12 @@ fn raw(root: &Path, cell: &Value) -> Result<()> {
     let class = text(cell, "requested_gpu_class")?;
     let info = start.get("adapter").ok_or("probe adapter missing")?;
     adapter(info, class)?;
+    if !array(&inventory, "adapters")?
+        .iter()
+        .any(|listed| equivalent(listed, info))
+    {
+        return Err("selected adapter is absent from probe inventory".into());
+    }
     if Some(info) != cell.get("actual_adapter") {
         return Err("collector adapter differs from raw probe adapter".into());
     }

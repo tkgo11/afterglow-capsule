@@ -147,7 +147,10 @@ impl Fixture {
                         complete["event"] = "complete".into();
                         complete["status"] = "PASS".into();
                         complete["windows_collected"] = 3.into();
-                        let mut events = vec![start];
+                        let mut inventory = doc("afterglow-spike-d-event");
+                        inventory["event"] = "adapter_inventory".into();
+                        inventory["adapters"] = json!([adapter.clone()]);
+                        let mut events = vec![inventory, start];
                         events.extend(samples.clone());
                         events.push(complete);
                         let raw = events
@@ -285,38 +288,38 @@ fn wrong_dpi_fails() {
 #[test]
 fn zero_input_fails_even_if_raw_and_summary_agree() {
     let f = Fixture::new();
-    f.raw_mutate(|e| e[1]["pointer_events"] = 0.into());
+    f.raw_mutate(|e| e[2]["pointer_events"] = 0.into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
 fn no_keyboard_fails() {
     let f = Fixture::new();
-    f.raw_mutate(|e| e[1]["keyboard_events"] = 0.into());
+    f.raw_mutate(|e| e[2]["keyboard_events"] = 0.into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
 fn bool_numeric_rejected() {
     let f = Fixture::new();
-    f.raw_mutate(|e| e[1]["frames"] = true.into());
+    f.raw_mutate(|e| e[2]["frames"] = true.into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
 fn negative_timing_rejected() {
     let f = Fixture::new();
-    f.raw_mutate(|e| e[1]["event_to_present_avg_ms"] = (-0.1).into());
+    f.raw_mutate(|e| e[2]["event_to_present_avg_ms"] = (-0.1).into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
 fn sample_counter_rejected() {
     let f = Fixture::new();
-    f.raw_mutate(|e| e[1]["event_to_present_count"] = 16.into());
+    f.raw_mutate(|e| e[2]["event_to_present_count"] = 16.into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
 fn no_native_dpi_proof_rejected() {
     let f = Fixture::new();
     f.raw_mutate(|e| {
-        e[0].as_object_mut()
+        e[1].as_object_mut()
             .unwrap()
             .remove("native_dpi")
             .map(|_| ())
@@ -356,6 +359,32 @@ fn raw_log_tamper_rejected() {
 fn missing_raw_log_rejected() {
     let f = Fixture::new();
     fs::remove_file(f.root.join("d/cells/0/probe.jsonl")).unwrap();
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn missing_adapter_inventory_rejected() {
+    let f = Fixture::new();
+    f.raw_mutate(|events| {
+        events.remove(0);
+    });
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn duplicate_adapter_inventory_rejected() {
+    let f = Fixture::new();
+    f.raw_mutate(|events| events.insert(1, events[0].clone()));
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn adapter_inventory_after_start_rejected() {
+    let f = Fixture::new();
+    f.raw_mutate(|events| events.swap(0, 1));
+    assert_eq!(f.status(), Status::Fail);
+}
+#[test]
+fn selected_adapter_missing_from_inventory_rejected() {
+    let f = Fixture::new();
+    f.raw_mutate(|events| events[0]["adapters"][0]["name"] = "another adapter".into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
@@ -499,13 +528,13 @@ fn dirty_vm_still_fails_when_provenance_is_pending() {
 #[test]
 fn zero_frame_timing_rejected() {
     let f = Fixture::new();
-    f.raw_mutate(|e| e[1]["interval_avg_ms"] = 0.into());
+    f.raw_mutate(|e| e[2]["interval_avg_ms"] = 0.into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
 fn slow_frames_require_real_degradation_policy() {
     let f = Fixture::new();
-    f.raw_mutate(|e| e[1]["interval_avg_ms"] = 30.into());
+    f.raw_mutate(|e| e[2]["interval_avg_ms"] = 30.into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
@@ -639,16 +668,16 @@ fn symlink_evidence_ancestor_rejected() {
 #[test]
 fn fast_mean_cannot_hide_slow_p95_without_degradation() {
     let f = Fixture::new();
-    f.raw_mutate(|events| events[1]["interval_p95_ms"] = 50.into());
+    f.raw_mutate(|events| events[2]["interval_p95_ms"] = 50.into());
     assert_eq!(f.status(), Status::Fail);
 }
 #[test]
 fn high_p95_automatic_static_fallback_is_honestly_accepted() {
     let f = Fixture::new();
     f.raw_mutate(|events| {
-        events[1]["interval_p95_ms"] = 50.into();
-        events[1]["next_mode"] = "static".into();
-        for sample in &mut events[2..=3] {
+        events[2]["interval_p95_ms"] = 50.into();
+        events[2]["next_mode"] = "static".into();
+        for sample in &mut events[3..=4] {
             sample["mode"] = "static".into();
             sample["next_mode"] = "static".into();
         }
@@ -659,9 +688,9 @@ fn high_p95_automatic_static_fallback_is_honestly_accepted() {
 fn moderate_p95_requires_and_accepts_reduced_fallback() {
     let f = Fixture::new();
     f.raw_mutate(|events| {
-        events[1]["interval_p95_ms"] = 20.into();
-        events[1]["next_mode"] = "reduced".into();
-        for sample in &mut events[2..=3] {
+        events[2]["interval_p95_ms"] = 20.into();
+        events[2]["next_mode"] = "reduced".into();
+        for sample in &mut events[3..=4] {
             sample["mode"] = "reduced".into();
             sample["next_mode"] = "reduced".into();
         }

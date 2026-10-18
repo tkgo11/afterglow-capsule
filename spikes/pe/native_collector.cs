@@ -59,6 +59,7 @@ public static class AfterglowSpikeCNative {
                 }
                 if (!Task.WaitAll(new Task[]{output,errors},5000)) throw new TimeoutException("Resource streams did not finish.");
                 if (process.ExitCode!=0) throw new IOException("Standalone resource reader failed: "+System.Text.Encoding.UTF8.GetString(errors.Result));
+                if (errors.Result.Length!=0) throw new IOException("Standalone executable emitted stderr: "+System.Text.Encoding.UTF8.GetString(errors.Result));
                 if (output.Result.Length==0) throw new IOException("Resource was empty.");
                 return output.Result;
             } finally { if (!process.HasExited) process.Kill(); }

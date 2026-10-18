@@ -1,4 +1,4 @@
-# Pure fixture tests only: never physical clean-VM evidence.
+# Fixture/process tests only: never physical clean-VM evidence.
 param([string]$ArtifactDirectory)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -43,7 +43,27 @@ $Logon = $Configuration.Configuration.LogonCommand.Command
 Assert ($Logon -match '-ExecutionPolicy RemoteSigned') 'Guest scoped supported execution policy is missing'
 Assert ($Logon -notmatch 'Bypass|Unrestricted') 'Forbidden broad execution policy introduced'
 Assert ($Logon -match 'collector-console.log') 'Guest startup errors will not be preserved'
-Write-Output 'Spike C pure collector checks passed; these fixtures are not clean-VM evidence.'
+
+# A successful exit with stderr is still a failed launch contract.
+$ProcessScratch = Join-Path ([IO.Path]::GetTempPath()) ('afterglow-native-collector-test-' + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $ProcessScratch | Out-Null
+try {
+    Add-Type -AssemblyName System.Drawing
+    Add-Type -Path (Join-Path $PSScriptRoot 'native_collector.cs') -ReferencedAssemblies @('System', 'System.Core', 'System.Drawing')
+    $StderrExe = Join-Path $ProcessScratch 'stderr-success.exe'
+    Add-Type -TypeDefinition 'public static class SpikeCLaunchFixture { public static int Main(string[] args) { if (args.Length == 0) { System.Console.Out.Write("ok"); System.Console.Error.Write("unexpected stderr"); return 0; } if (args[0] == "nonzero") { System.Console.Error.Write("failed"); return 7; } if (args[0] == "oversize") { System.Console.Out.Write(new string(''x'', 16385)); return 0; } return 0; } }' -OutputAssembly $StderrExe -OutputType ConsoleApplication
+    $RejectedStderr = $false
+    try { [AfterglowSpikeCNative]::ReadResource($StderrExe, $ProcessScratch, '') | Out-Null }
+    catch { $RejectedStderr = ($_.Exception.Message -match 'emitted stderr') }
+    Assert $RejectedStderr 'Successful process with unexpected stderr was accepted'
+    foreach ($Kind in @('nonzero', 'oversize')) {
+        $Rejected = $false
+        try { [AfterglowSpikeCNative]::ReadResource($StderrExe, $ProcessScratch, $Kind) | Out-Null }
+        catch { $Rejected = $true }
+        Assert $Rejected "Standalone $Kind launch was accepted"
+    }
+} finally { Remove-Item -LiteralPath $ProcessScratch -Recurse -Force }
+Write-Output 'Spike C collector fixture/process checks passed; these are not clean-VM evidence.'
 
 if ($ArtifactDirectory) {
     # Actual hosted CI smoke: machine/resource extraction executes but cleanliness
@@ -62,7 +82,19 @@ if ($ArtifactDirectory) {
         Assert ((Test-Path (Join-Path $Scratch 'shell-icon.png'))) 'Actual Shell icon extraction failed'
         Assert ($Observed.shell_icon_sha256 -match '^[a-f0-9]{64}$') 'Actual shell icon hash missing'
         Assert ($null -eq $Observed.shell_icon_observation.correct) 'Hosted CI manufactured visual observation'
-        Write-Output 'Hosted CI actual extraction smoke passed; cleanliness correctly FAIL.'
+        # Independent behavioral control: launch the signed fixture with no arguments
+        # from a directory containing only the EXE and compare its public output.
+        $LaunchDirectory = Join-Path $Scratch 'default-launch'
+        New-Item -ItemType Directory -Path $LaunchDirectory | Out-Null
+        $LaunchExe = Join-Path $LaunchDirectory 'SpikeC-Standalone.exe'
+        Copy-Item -LiteralPath (Join-Path $ArtifactDirectory 'SpikeC-Standalone.exe') -Destination $LaunchExe
+        $Expected = Get-Content -LiteralPath (Join-Path $ArtifactDirectory 'spike-c-expected.json') -Raw | ConvertFrom-Json
+        $Capsule = [AfterglowSpikeCNative]::ReadResource($LaunchExe, $LaunchDirectory, 'capsule')
+        $Default = [AfterglowSpikeCNative]::ReadResource($LaunchExe, $LaunchDirectory, '')
+        Assert ($Default.Length -eq $Capsule.Length -and (Get-SpikeCSha256 $Default) -eq $Expected.resource_sha256.capsule) 'No-argument launch did not return the exact expected capsule'
+        Assert (@(Get-ChildItem -LiteralPath $LaunchDirectory -Force).Count -eq 1) 'No-argument launch created a project sidecar'
+
+        Write-Output 'Hosted CI actual default launch smoke passed; cleanliness correctly FAIL.'
         $global:LASTEXITCODE = 0
     } finally { Remove-Item -LiteralPath $Scratch -Recurse -Force }
 }
