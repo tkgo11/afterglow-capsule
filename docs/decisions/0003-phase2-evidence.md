@@ -75,15 +75,15 @@ review must finish before a new artifact is recommended. CI completion alone
 never accepts C/D. A genuine reviewed Phase 2 PASS is necessary before starting
 Phase 3 and proceeding in SPEC order; pending evidence leaves Phases 3–12 pending.
 
-## Reviewed version 2 artifacts and cloud checks
+## Historical reviewed version 2 artifacts and cloud checks
 
 Review date for this result: 2026-10-07 (Asia/Seoul).
 
 [All five mandatory spike CI jobs](https://github.com/tkgo11/afterglow-capsule/actions/runs/37493855142)
 passed. Source commit `95c028697cd4dd028deb84c9b27196f9d0e1ead4` produced the
-following independently downloaded and reviewed bundles. Use these exact
-artifacts with [the reviewed trusted provenance](phase2-trusted-provenance.json),
-not an arbitrary later rebuild. Both ZIP hashes match GitHub's upload digest;
+following independently downloaded and reviewed bundles. These are superseded
+for new C/D acceptance by the current reviewed bundles below. Both ZIP hashes
+matched GitHub's upload digest;
 bundle-listed file hashes and actual x64 PE/EXE hashes match. No keys, certificate
 files, project sidecars or redistributable DLLs are included. `objdump -p` confirms
 C/D/validator imports have no VCRUNTIME/MSVCP redistributable dependency.
@@ -108,8 +108,8 @@ FAIL. The [D artifact job](https://github.com/tkgo11/afterglow-capsule/actions/r
 passed the 39 pure WinPS 5.1 collector regressions and native enumeration; its
 actual hosted adapter is Microsoft Basic Render Driver (`Cpu`), closing no cell.
 
-The [current validator result](phase2-validation-status.json), generated using
-the exact downloaded bundles and separately reviewed provenance, is **PENDING**:
+The validator result at the time, later regenerated with the current reviewed
+provenance, is **PENDING**:
 A/B references pass; the genuine recipient report and physical matrix are absent.
 No synthetic fixture or hosted diagnostic was inserted as returned physical
 evidence.
@@ -121,3 +121,51 @@ nor supplies a licensed clean client image. The separate
 [clean-Windows investigation](0004-clean-windows-cloud.md) records supported
 prerequisites without treating Server, containers or development appliances as
 recipient acceptance. No cloud VM subscription/credentials/image are configured.
+
+## Current reviewed bundles and hosted checks
+
+Review date: 2026-10-19 (Asia/Seoul). Source commit
+`bdc78a81578aca9b7e97629894d58ab8ece8bc4f` passed all 14 hosted jobs:
+[workspace](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127563876),
+[mandatory spikes](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564125),
+and [cloud feasibility](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564021).
+The four locked Rust graphs passed the advisory scan against RustSec revision
+`999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b`, with no reported known
+vulnerabilities or scanner errors. The existing informational unmaintained
+`proc-macro-error2` warning remains visible in spike and preparation graphs.
+The [raw advisory artifact](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127563876/artifacts/12137090355)
+has ZIP SHA-256 `c0e6979961f7211a9d6d03fa42bb1e99ed26db2d051f07f7fe2ffefee7157768`.
+
+The Windows A/B job verified future round `33174510`: ciphertext was rejected
+before the round and decrypted only after pinned-chain signature verification,
+with Go↔Rust compatibility in both directions. Independent Cloudflare and Netnod
+NTS receipts authenticated using the patched `rustls 0.23.46` lock. The C job
+passed resource replacement, readback, signing, post-sign mutation rejection,
+collector regressions and actual no-argument hosted EXE launch; hosted cleanliness
+correctly failed. The D job passed native collector and GPU probe build checks;
+its hosted adapter does not supply physical matrix evidence.
+
+The C/D bundles below were downloaded independently. Their ZIP SHA-256 values
+match GitHub's artifact digests. Every listed file matches its bundle manifest,
+the manifests record the exact source commit and workflow run, and the bundles
+contain no unexpected files beyond named hosted diagnostics. Parsed PE imports
+for both probe EXEs have no `VCRUNTIME` or `MSVCP` redistributable dependency.
+Use these exact bundles with [the updated trusted provenance](phase2-trusted-provenance.json)
+for new physical collection; newer rebuilds require separate review.
+
+| Bundle | Exact artifact                                                                                            | ZIP SHA-256                                                      | Bundle-files SHA-256                                             | EXE SHA-256                                                      |
+| ------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| C      | [12135914286](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564125/artifacts/12135914286) | 859316acc7645deee65b6d945c38ed01e2121f17011246f73abc49a0c9f52c68 | d982922ee5c8faff7963be3d602be167f5192cc25164973db5e66370a1088dfb | c155d1653e8c125341e29abc3bd32c0ffc994e4ec27d6cd433dffa4cbb614a8e |
+| D      | [12136394485](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564125/artifacts/12136394485) | 9c641ddfa457bb620a8d49e42a22d526f2abf60cad86daba8e3a3aedf5a303ff | b2e7c66deb1a72219f60c0d771ac7ffd3715ec50108d52546dc3c004b4cff79f | c3e56b7d6f2ee7334ac02c96df0aaf5cd68a7bce12f0fbdc703804cd179d9edb |
+
+The trusted document separately pins the expected-evidence manifest hashes:
+C `4569cf87cd1c452dbd1c52a30dcaa0b92370261305c0609438c006d5b9738eb7`
+and D `15f0c4ca82786d9abd234a284b8d1056cb3f33e5160eeee53347e5ac1105e6ad`.
+The bundled Windows validator confirmed A/B and trust PASS, with C/D PENDING
+because the genuine returned reports are absent; the exact
+[validator output](phase2-validation-status.json) is preserved.
+
+GitHub lists these artifacts as expiring 2026-11-01 UTC. Their collector
+smoke results do not close the physical gate. Phase 2 remains **PENDING** until
+the genuine clean-recipient report, Shell-icon observation and 54 physical GPU
+cells with human observations pass the strict validator.

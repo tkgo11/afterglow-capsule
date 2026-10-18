@@ -1,4 +1,4 @@
-# Implementation status — 2026-10-10
+# Implementation status — 2026-10-19
 
 The repository does not yet meet the final Builder/Viewer product target.
 Phases 0–1 are complete. Phase 2 A/B passed; C/D remain PENDING. The user deferred
@@ -27,7 +27,7 @@ Neither production application may depend on them while the gate is pending;
 bootstrap tests enforce that boundary. No backend, local-clock authorization,
 preview unlock or Viewer admin surface was added.
 
-Reviewable commits in [draft PR #1](https://github.com/tkgo11/afterglow-capsule/pull/1):
+Reviewable commits in [PR #1](https://github.com/tkgo11/afterglow-capsule/pull/1):
 
 - `652e036`: bounded object cryptography and independent Python vectors.
 - `4243398`: exact-round timelock and official Go CEK differential.
@@ -36,6 +36,8 @@ Reviewable commits in [draft PR #1](https://github.com/tkgo11/afterglow-capsule/
 - `800790b`: pure auxiliary time engine and explicit NTS metadata issue.
 - `2014be8`: encrypted-record fuzz target, codec bounds and clock separation tests.
 - `0150115`: indexed capsule lookup, immutable validated metadata and large shuffled-table regression.
+- `ddefbd8`: clean-recipient default launch, digest readback, adapter inventory and relay-origin review fixes.
+- `bdc78a8`: patched `rustls 0.23.46` in both affected locked graphs.
 
 Local checks passed: **48 preparation tests** (14 crypto, 9 timelock, 8 capsule,
 7 state, 10 time), formatting and Clippy; official Go/prepared-Rust historical
@@ -53,6 +55,15 @@ The Windows preparation job's logs confirm the actual prepared adapter's Go
 differential passed, rather than inferring compatibility from Spike A alone.
 Later source changes require their own CI result; PR #1 records the latest reviewed run.
 
+At `bdc78a8`, all 14 hosted jobs passed across the
+[workspace](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127563876),
+[mandatory spikes](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564125)
+and [cloud feasibility diagnostic](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564021).
+The latest Windows run repeated the future-round Go↔Rust check and authenticated
+two independent NTS sources using the patched TLS lock. Its C job exercised the
+standalone EXE's no-argument launch on hosted Windows; that host is not a clean
+recipient. All four PR review threads were resolved after fixes and regressions.
+
 ## Security findings and limits
 
 Four locked Rust graphs were scanned without advisory/platform/severity exclusions
@@ -64,6 +75,11 @@ unmaintained warning remains visible in the spike
 and preparation age localization chains. It requires maintenance review before
 production adoption; changing the validated timelock path requires renewed tests.
 This is not a comprehensive security audit.
+
+The current [hosted RustSec scan](https://github.com/tkgo11/afterglow-capsule/actions/runs/39127563876/artifacts/12137090355)
+passed all four locked graphs against database revision
+`999ec89d5d3f10f20be14750ec8c2d8b44e0ac9b`, with no reported known
+vulnerabilities, exclusions or scanner errors. The unmaintained warning remains.
 
 The [NTS metadata issue](decisions/0006-nts-metadata-boundary.md) remains a software
 integration blocker: the evaluated high-level API discards authenticated precision,
@@ -87,11 +103,13 @@ clean-VM report and no D physical matrix. Existing obsolete/failed runs and revi
 provenance were preserved. Hosted CI with developer tools and its CPU adapter
 cannot satisfy these requirements.
 
-The reviewed bundles remain anchored to `95c028697cd4dd028deb84c9b27196f9d0e1ead4`
-in [trusted provenance](decisions/phase2-trusted-provenance.json). Newer CI rebuilds
-are not automatically trusted substitutes. The reviewed download artifacts expire
-October 20 UTC; preserve the public bundles locally, or independently review new
-artifacts and provenance before collecting acceptance evidence.
+The current reviewed C/D bundles are anchored to
+`bdc78a81578aca9b7e97629894d58ab8ece8bc4f` in
+[trusted provenance](decisions/phase2-trusted-provenance.json). Their exact links
+and independently verified hashes are in the
+[evidence decision](decisions/0003-phase2-evidence.md). GitHub lists them as
+expiring November 1 UTC. Preserve the reviewed bundles locally, or independently
+review any later rebuild and provenance before collecting acceptance evidence.
 
 If the deferred tests are resumed, use the complete reviewed bundles and the
 [manual protocol](../spikes/manual/README.md). Exact Windows entry points are:
