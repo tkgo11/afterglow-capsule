@@ -57,7 +57,7 @@ adoption requires the mandatory gate results and further dependency review.
 | drand_core     | 0.0.19                               | MIT                      | https://github.com/thibmeu/drand-rs     | Pinned-chain/round BLS/randomness checks in isolated wrapper                            |
 | rkik-nts       | 1.4.0                                | MIT                      | https://github.com/aguacero7/rkik-nts   | Verified independent documented providers and real failure tests on Windows             |
 | tokio          | 1.52.3                               | MIT                      | https://github.com/tokio-rs/tokio       | Bounded async network experiments                                                       |
-| rustls         | 0.23.45                              | Apache-2.0 OR ISC OR MIT | https://github.com/rustls/rustls        | Candidate TLS verifier/transport; no bypass configured                                  |
+| rustls         | 0.23.46                              | Apache-2.0 OR ISC OR MIT | https://github.com/rustls/rustls        | Candidate TLS verifier/transport; no bypass configured                                  |
 | tokio-rustls   | 0.26.6                               | MIT OR Apache-2.0        | https://github.com/rustls/tokio-rustls  | Candidate TLS integration and local test server                                         |
 | ring           | 0.17.14                              | Apache-2.0 AND ISC       | https://github.com/briansmith/ring      | Candidate TLS crypto provider; transitive, not an audit endorsement                     |
 | aes-siv        | 0.7.0                                | Apache-2.0 OR MIT        | https://github.com/RustCrypto/AEADs     | Candidate NTS AEAD dependency; not the capsule cipher selection                         |
@@ -71,8 +71,12 @@ adoption requires the mandatory gate results and further dependency review.
 The published `rkik-nts 1.4.0` changelog records 2026-10-03 Windows compatibility,
 bounded-cookie and TLS-security fixes. The official RustSec
 [RUSTSEC-2026-0285](https://rustsec.org/advisories/RUSTSEC-2026-0285.html) advisory
-lists Rustls >=0.23.45 as patched; the candidate locks 0.23.45. This specific review
-was originally limited to that advisory. The current lockfile advisory scans
+lists Rustls >=0.23.45 as patched. The candidate now locks 0.23.46, which also
+addresses [RUSTSEC-2026-0346](https://rustsec.org/advisories/RUSTSEC-2026-0346.html),
+[0347](https://rustsec.org/advisories/RUSTSEC-2026-0347.html),
+[0348](https://rustsec.org/advisories/RUSTSEC-2026-0348.html), and
+[0349](https://rustsec.org/advisories/RUSTSEC-2026-0349.html). The initial review
+was limited to 0285. The current lockfile advisory scans
 below remain a separate, limited review and do not establish overall security.
 
 No dangerous TLS configuration, TLS key logging, fabricated beacon or development

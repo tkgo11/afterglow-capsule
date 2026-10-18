@@ -53,6 +53,8 @@ Maintainability basis for this spike: the published 1.4.0 changelog records acti
 2026-10-03 fixes for Windows toolchain compatibility, bounded cookie storage and
 TLS security. Its Rustls floor is 0.23.45, which the official RustSec advisory
 `RUSTSEC-2026-0285` lists as patched. The evaluated lock uses that patched version.
+The evaluated 0.23.45 lock is historical; the current spike lock uses 0.23.46
+after the later RustSec advisories RUSTSEC-2026-0346 through 0349.
 This review and platform evidence are a basis for the candidate experiment, not
 a comprehensive advisory scan or third-party audit.
 
