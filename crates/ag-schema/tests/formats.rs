@@ -24,7 +24,7 @@ fn manifest_value() -> Value {
                 "profile_id": "synthetic-only", "chain_hash": "00".repeat(32),
                 "public_key": "01".repeat(48), "genesis_utc": "2030-03-01T15:00:00Z",
                 "period_seconds": 3, "scheme_id": "synthetic-only",
-                "relays": ["https://relay-one.example", "https://relay-two.example"]
+                "relays": reviewed_relay_origins().unwrap()
             }
         },
         "layout": {"pre_release": "countdown-default", "post_release": "constellation"},
@@ -95,14 +95,25 @@ fn pinned_release_rejects_zero_wrong_round_wrong_profile_timezone_and_insecure_r
         value["release"][field] = json!(invalid);
         assert!(read_manifest(&value).is_err());
     }
+    let reviewed = reviewed_relay_origins().unwrap();
+    let public_host = url::Url::parse(&reviewed[0])
+        .unwrap()
+        .host_str()
+        .unwrap()
+        .to_owned();
     for relay in [
-        "http://relay.example",
-        "https://user:password@relay.example",
-        "https://relay.example/?project=unique",
-        "https://relay.example/#fragment",
-        "https://relay.example/project-unique",
-        "https://relay.example/base/project-unique/",
-        "https://relay.example/%70roject-unique",
+        "http://relay.example".to_owned(),
+        "https://user:password@relay.example".to_owned(),
+        "https://relay.example/?project=unique".to_owned(),
+        "https://relay.example/#fragment".to_owned(),
+        "https://relay.example/project-unique".to_owned(),
+        "https://relay.example/base/project-unique/".to_owned(),
+        "https://relay.example/%70roject-unique".to_owned(),
+        "https://project-123.example/".to_owned(),
+        format!("https://{public_host}.evil.example/"),
+        format!("https://{public_host}:444/"),
+        format!("https://{public_host}/project-unique/"),
+        format!("https://{public_host}/?project=unique"),
     ] {
         let mut value = manifest_value();
         value["release"]["network"]["relays"][0] = json!(relay);
@@ -112,8 +123,13 @@ fn pinned_release_rejects_zero_wrong_round_wrong_profile_timezone_and_insecure_r
     value["release"]["network"]["period_seconds"] = json!(0);
     assert!(read_manifest(&value).is_err());
     let mut value = manifest_value();
-    value["release"]["network"]["relays"][0] = json!("https://relay.example/");
+    value["release"]["network"]["relays"][0] =
+        json!(format!("https://{}:443/", public_host.to_ascii_uppercase()));
     assert!(read_manifest(&value).is_ok());
+    let mut value = manifest_value();
+    value["release"]["network"]["relays"][1] =
+        json!(format!("https://{}:443/", public_host.to_ascii_uppercase()));
+    assert!(read_manifest(&value).is_err());
 }
 
 #[test]

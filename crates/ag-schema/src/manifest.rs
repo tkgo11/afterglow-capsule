@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::OnceLock};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -55,6 +55,55 @@ pub struct NetworkProfile {
     pub relays: Vec<String>,
 }
 
+fn reviewed_relays() -> Result<&'static HashSet<url::Url>, SchemaError> {
+    static RELAYS: OnceLock<Option<HashSet<url::Url>>> = OnceLock::new();
+    RELAYS
+        .get_or_init(|| {
+            let policy: serde_json::Value = serde_json::from_str(include_str!(concat!(
+                env!("OUT_DIR"),
+                "/reviewed-relays.json"
+            )))
+            .ok()?;
+            if policy.get("format_name")?.as_str()? != "afterglow-reviewed-drand-relays"
+                || policy.get("format_version")?.as_u64()? != 1
+                || policy.get("minimum_reader_version")?.as_u64()? != 1
+            {
+                return None;
+            }
+            let origins = policy.get("origins")?.as_array()?;
+            if !(2..=16).contains(&origins.len()) {
+                return None;
+            }
+            let mut relays = HashSet::new();
+            for origin in origins {
+                let url = url::Url::parse(origin.as_str()?).ok()?;
+                if !valid_relay_origin(&url) || !relays.insert(url) {
+                    return None;
+                }
+            }
+            Some(relays)
+        })
+        .as_ref()
+        .ok_or(SchemaError::Invalid("reviewed relay policy"))
+}
+
+/// Public relay origins compiled from the centrally reviewed external-assumptions record.
+pub fn reviewed_relay_origins() -> Result<Vec<String>, SchemaError> {
+    let mut origins: Vec<_> = reviewed_relays()?.iter().map(ToString::to_string).collect();
+    origins.sort();
+    Ok(origins)
+}
+
+fn valid_relay_origin(url: &url::Url) -> bool {
+    url.scheme() == "https"
+        && url.host_str().is_some()
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.path() == "/"
+        && url.query().is_none()
+        && url.fragment().is_none()
+}
+
 impl Validate for NetworkProfile {
     fn validate(&self) -> Result<(), SchemaError> {
         nonempty(&self.profile_id, "network profile identity")?;
@@ -71,18 +120,11 @@ impl Validate for NetworkProfile {
         if !(2..=16).contains(&self.relays.len()) {
             return Err(SchemaError::Invalid("relay allowlist count"));
         }
+        let reviewed = reviewed_relays()?;
         let mut relays = HashSet::new();
         for relay in &self.relays {
             let url = url::Url::parse(relay).map_err(|_| SchemaError::Invalid("relay URL"))?;
-            if url.scheme() != "https"
-                || url.host_str().is_none()
-                || !url.username().is_empty()
-                || url.password().is_some()
-                || url.path() != "/"
-                || url.query().is_some()
-                || url.fragment().is_some()
-                || !relays.insert(url)
-            {
+            if !valid_relay_origin(&url) || !reviewed.contains(&url) || !relays.insert(url) {
                 return Err(SchemaError::Invalid("relay allowlist"));
             }
         }

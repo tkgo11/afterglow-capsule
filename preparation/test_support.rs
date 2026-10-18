@@ -31,7 +31,7 @@ pub fn release(round: u64) -> PinnedRelease {
         "network": { "profile_id": "quicknet-v1", "chain_hash": chain["hash"],
             "public_key": chain["public_key"], "genesis_utc": time(genesis),
             "period_seconds": period, "scheme_id": chain["schemeID"],
-            "relays": ["https://relay-one.example", "https://relay-two.example"] }
+            "relays": ag_schema::reviewed_relay_origins().unwrap() }
     }))
     .unwrap()
 }

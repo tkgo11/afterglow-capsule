@@ -20,6 +20,8 @@ args = parser.parse_args()
 text = (ROOT / "docs/external-assumptions.md").read_text(encoding="utf-8")
 fixture = json.loads(text.split("<!-- BEGIN AFTERGLOW HISTORICAL QUICKNET FIXTURE -->")[1]
                      .split("```json")[1].split("```")[0])
+relays = json.loads(text.split("<!-- BEGIN AFTERGLOW REVIEWED PUBLIC DRAND RELAYS -->")[1]
+                    .split("```json")[1].split("```")[0])["origins"]
 chain = fixture["chain"]
 material = fixture["additional_quicknet_beacon"]
 round_number = material["round"]
@@ -35,7 +37,7 @@ release = {"utc": timestamp(chain["genesis_time"] + (round_number - 1) * chain["
            "network": {"profile_id": "quicknet-v1", "chain_hash": chain["hash"],
                        "public_key": chain["public_key"], "genesis_utc": timestamp(chain["genesis_time"]),
                        "period_seconds": chain["period"], "scheme_id": chain["schemeID"],
-                       "relays": ["https://relay-one.example", "https://relay-two.example"]}}
+                       "relays": relays}}
 
 
 def call(binary, *arguments, success=True):

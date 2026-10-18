@@ -148,6 +148,33 @@ Sources:
 - https://github.com/cloudflare/cloudflare-docs/blob/production/src/content/docs/time-services/nts.mdx
 - https://github.com/aguacero7/rkik-nts (published 1.4.0 README)
 
+### Reviewed public drand relay origins
+
+**Relay origins reviewed:** 2026-10-19
+
+The manifest accepts only these HTTPS v1 API origins for automatic release
+requests. The list is compiled into `ag-schema`; a project manifest cannot add
+a project-specific relay. These two origins are documented by drand and run by
+different operators. Their current reachability has not been established by this
+review; revalidate before shipping. Every beacon still requires pinned-chain
+cryptographic verification.
+
+Source: https://docs.drand.love/developer/API-v1/drand-http-api/
+
+<!-- BEGIN AFTERGLOW REVIEWED PUBLIC DRAND RELAYS -->
+```json
+{
+  "format_name": "afterglow-reviewed-drand-relays",
+  "format_version": 1,
+  "minimum_reader_version": 1,
+  "origins": [
+    "https://api.drand.sh/",
+    "https://drand.cloudflare.com/"
+  ]
+}
+```
+<!-- END AFTERGLOW REVIEWED PUBLIC DRAND RELAYS -->
+
 <!-- BEGIN AFTERGLOW SPIKE ENDPOINT CANDIDATES -->
 
 ```json

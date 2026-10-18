@@ -26,7 +26,7 @@ fn engine(round: u64) -> QuicknetEngine {
         "network": { "profile_id": "quicknet-v1", "chain_hash": chain["hash"],
             "public_key": chain["public_key"], "genesis_utc": timestamp(genesis),
             "period_seconds": period, "scheme_id": chain["schemeID"],
-            "relays": ["https://relay-one.example", "https://relay-two.example"] }
+            "relays": ag_schema::reviewed_relay_origins().unwrap() }
     }))
     .map(QuicknetEngine::new)
     .unwrap()
@@ -173,6 +173,9 @@ fn all_pinned_network_fields_and_release_metadata_are_checked() {
     let mut wrong = engine.release.clone();
     wrong.target_round += 1;
     assert!(QuicknetEngine::new(wrong).is_err());
+    let mut wrong = engine.release.clone();
+    wrong.network.relays[0] = "https://project-123.example/".to_owned();
+    assert!(QuicknetEngine::new(wrong).is_err());
 }
 
 struct Transport {
@@ -181,7 +184,7 @@ struct Transport {
 
 impl RelayTransport for Transport {
     fn fetch(&self, url: String) -> RelayFuture {
-        let index = usize::from(url.contains("relay-two"));
+        let index = usize::from(url.starts_with(&ag_schema::reviewed_relay_origins().unwrap()[1]));
         let result = self.bodies[index].clone();
         Box::pin(async move { result })
     }
