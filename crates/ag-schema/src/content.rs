@@ -100,6 +100,18 @@ fn validate_text(text: &[Inline]) -> Result<(), SchemaError> {
     Ok(())
 }
 
+fn validate_audio_caption(caption: &[Inline]) -> Result<(), SchemaError> {
+    validate_text(caption)?;
+    if caption
+        .iter()
+        .any(|inline| matches!(inline, Inline::Text { text, .. } if !text.trim().is_empty()))
+    {
+        Ok(())
+    } else {
+        Err(SchemaError::Invalid("audio caption"))
+    }
+}
+
 impl Validate for ContentBlock {
     fn validate(&self) -> Result<(), SchemaError> {
         match self {
@@ -145,7 +157,7 @@ impl Validate for ContentBlock {
                     Err(SchemaError::Invalid("link URL"))
                 }
             }
-            Self::Audio { caption, .. } => validate_text(caption),
+            Self::Audio { caption, .. } => validate_audio_caption(caption),
             _ => Ok(()),
         }
     }

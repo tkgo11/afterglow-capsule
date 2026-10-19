@@ -18,6 +18,21 @@ fn project_with_index_id(
     round: u64,
     index_change: impl FnOnce(&mut Document<ArchiveIndex>, StableId),
 ) -> ProjectFixture {
+    project_with_changes(round, index_change, |_| {})
+}
+
+fn project_with_entry(
+    round: u64,
+    entry_change: impl FnOnce(&mut Document<EntryContent>),
+) -> ProjectFixture {
+    project_with_changes(round, |_, _| {}, entry_change)
+}
+
+fn project_with_changes(
+    round: u64,
+    index_change: impl FnOnce(&mut Document<ArchiveIndex>, StableId),
+    entry_change: impl FnOnce(&mut Document<EntryContent>),
+) -> ProjectFixture {
     let mut manifest = fixtures::manifest();
     manifest.release = fixtures::release(round);
     let profile_id = StableId::random();
@@ -44,7 +59,7 @@ fn project_with_index_id(
     .unwrap();
     index_change(&mut archive, manifest.private_manifest_id);
     let index_bytes = serde_json::to_vec(&archive).unwrap();
-    let entry = Document::new(
+    let mut entry = Document::new(
         ENTRY_FORMAT,
         EntryContent {
             title: "Protected public fixture".into(),
@@ -55,6 +70,7 @@ fn project_with_index_id(
         },
     )
     .unwrap();
+    entry_change(&mut entry);
     let private_id = manifest.private_manifest_id;
     let mut assembler = CapsuleAssembler::new(manifest, Limits::default()).unwrap();
     assembler
@@ -77,7 +93,7 @@ fn project_with_index_id(
         .add_private(
             entry_object,
             ObjectClass::PrivateJson,
-            &entry.to_json(ENTRY_FORMAT).unwrap(),
+            &serde_json::to_vec(&entry).unwrap(),
             CompressionPolicy::Text,
         )
         .unwrap();
@@ -159,6 +175,24 @@ fn valid_release_authenticates_before_ceremony_and_navigation() {
     assert_eq!(session.state(), &State::EntryDetail(project.entry_id));
     session.back().unwrap();
     assert_eq!(session.state(), &State::PostReleaseHome);
+}
+
+#[test]
+fn decrypted_entry_with_whitespace_only_title_fails_closed() {
+    let project = project_with_entry(1000, |entry| {
+        entry.data.title = " \t\r\n".into();
+    });
+    let mut session = session(&project.bytes);
+    release(&mut session);
+    session.open_entry(project.entry_id).unwrap();
+
+    assert!(matches!(
+        session.read_entry(),
+        Err(SessionError::Locked(Failure::PrivateFormat))
+    ));
+    assert_eq!(session.state(), &State::LockedError(Failure::PrivateFormat));
+    assert!(session.cek.is_none());
+    assert!(session.archive.is_none());
 }
 
 #[test]

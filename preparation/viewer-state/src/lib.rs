@@ -120,6 +120,9 @@ pub struct EntryContent {
 
 impl Validate for EntryContent {
     fn validate(&self) -> Result<(), SchemaError> {
+        if self.title.trim().is_empty() {
+            return Err(SchemaError::Invalid("entry title"));
+        }
         if self.blocks.len() > 10_000 {
             return Err(SchemaError::Invalid("entry block count"));
         }

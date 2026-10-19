@@ -267,6 +267,11 @@ impl Validate for ObjectMetadata {
         if self.length == 0 || self.offset.checked_add(self.length).is_none() {
             return Err(SchemaError::Invalid("object extent"));
         }
+        if !self.class.is_private()
+            && (self.compression != Compression::None || self.plaintext_length != self.length)
+        {
+            return Err(SchemaError::Invalid("public object encoding"));
+        }
         match &self.protection {
             ObjectProtection::Public { sha256 }
                 if !self.class.is_private() && valid_hex(sha256, 32) =>

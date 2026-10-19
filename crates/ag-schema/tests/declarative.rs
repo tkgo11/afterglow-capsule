@@ -237,3 +237,95 @@ fn image_blocks_require_descriptive_alternatives_for_every_image() {
         );
     }
 }
+
+#[test]
+fn audio_blocks_require_a_non_whitespace_text_caption() {
+    let id = StableId::random();
+    let invalid_captions = [
+        vec![],
+        vec![Inline::SoftBreak],
+        vec![Inline::Text {
+            text: " \t\n ".into(),
+            bold: false,
+            italic: false,
+            underline: false,
+            emphasis: false,
+            link: None,
+        }],
+        vec![
+            Inline::SoftBreak,
+            Inline::Text {
+                text: "  ".into(),
+                bold: false,
+                italic: false,
+                underline: false,
+                emphasis: false,
+                link: Some("https://example.com/transcript".into()),
+            },
+        ],
+    ];
+
+    for caption in invalid_captions {
+        assert_eq!(
+            ContentBlock::Audio {
+                object_id: id,
+                caption,
+            }
+            .validate()
+            .unwrap_err()
+            .to_string(),
+            "invalid audio caption"
+        );
+    }
+}
+
+#[test]
+fn audio_blocks_accept_plain_and_linked_text_captions() {
+    let id = StableId::random();
+    for caption in [
+        vec![Inline::Text {
+            text: "Voice memo".into(),
+            bold: false,
+            italic: false,
+            underline: false,
+            emphasis: false,
+            link: None,
+        }],
+        vec![
+            Inline::SoftBreak,
+            Inline::Text {
+                text: "Read the transcript".into(),
+                bold: false,
+                italic: false,
+                underline: true,
+                emphasis: false,
+                link: Some("https://example.com/transcript".into()),
+            },
+        ],
+    ] {
+        ContentBlock::Audio {
+            object_id: id,
+            caption,
+        }
+        .validate()
+        .unwrap();
+    }
+
+    assert_eq!(
+        ContentBlock::Audio {
+            object_id: id,
+            caption: vec![Inline::Text {
+                text: "Transcript".into(),
+                bold: false,
+                italic: false,
+                underline: false,
+                emphasis: false,
+                link: Some("javascript:alert(1)".into()),
+            }],
+        }
+        .validate()
+        .unwrap_err()
+        .to_string(),
+        "invalid inline link"
+    );
+}

@@ -198,6 +198,7 @@ fn public_objects_require_valid_sha256_and_separate_store_ranges() {
     let mut object = manifest.objects[0].clone();
     object.object_id = StableId::random();
     object.class = ObjectClass::PublicImage;
+    object.plaintext_length = object.length;
     object.protection = ObjectProtection::Public {
         sha256: "ab".repeat(32),
     };
@@ -209,6 +210,39 @@ fn public_objects_require_valid_sha256_and_separate_store_ranges() {
         object.protection = ObjectProtection::Public { sha256: digest };
         assert!(object.validate().is_err());
     }
+}
+
+#[test]
+fn public_object_encoding_invariants_fail_closed_during_json_io() {
+    let mut value = manifest_value();
+    value["objects"].as_array_mut().unwrap().push(json!({
+        "object_id": "d882661a-a69f-4577-8167-621d67e95858",
+        "class": "public-image", "offset": 0, "length": 64,
+        "plaintext_length": 64, "compression": "none",
+        "protection": {"kind": "public", "sha256": "ab".repeat(32)}
+    }));
+    let manifest = read_manifest(&value).unwrap();
+    manifest.to_json().unwrap();
+
+    for (field, invalid) in [
+        ("plaintext_length", json!(63)),
+        ("compression", json!("zstandard")),
+    ] {
+        let mut invalid_value = value.clone();
+        invalid_value["objects"][1][field] = invalid;
+        assert!(
+            read_manifest(&invalid_value).is_err(),
+            "from_json accepted invalid public {field}"
+        );
+    }
+
+    let mut invalid = manifest.clone();
+    invalid.objects[1].plaintext_length -= 1;
+    assert!(invalid.to_json().is_err());
+
+    let mut invalid = manifest;
+    invalid.objects[1].compression = Compression::Zstandard;
+    assert!(invalid.to_json().is_err());
 }
 
 #[test]
