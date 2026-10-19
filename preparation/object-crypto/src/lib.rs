@@ -115,14 +115,14 @@ impl BuildEncryptor {
         plaintext: &[u8],
         policy: CompressionPolicy,
     ) -> Result<Vec<u8>, CryptoError> {
-        if !self.used_ids.insert(object_id) {
+        if self.used_ids.contains(&object_id) {
             return Err(CryptoError::DuplicateObject);
         }
         let mut prefix = [0; 8];
         let mut selected = false;
         for _ in 0..32 {
             getrandom::fill(&mut prefix).map_err(|_| CryptoError::Random)?;
-            if self.prefixes.insert(prefix) {
+            if !self.prefixes.contains(&prefix) {
                 selected = true;
                 break;
             }
@@ -130,7 +130,7 @@ impl BuildEncryptor {
         if !selected {
             return Err(CryptoError::NonceExhaustion);
         }
-        encrypt(
+        let encrypted = encrypt(
             &self.key,
             Binding {
                 project_id: self.project_id,
@@ -142,7 +142,10 @@ impl BuildEncryptor {
             policy,
             DEFAULT_CHUNK_SIZE,
             self.limits,
-        )
+        )?;
+        self.used_ids.insert(object_id);
+        self.prefixes.insert(prefix);
+        Ok(encrypted)
     }
 }
 

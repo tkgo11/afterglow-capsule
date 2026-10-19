@@ -95,6 +95,38 @@ fn build_enforces_unique_ids_and_prefixes() {
 }
 
 #[test]
+fn failed_encryption_does_not_reserve_id_or_nonce_prefix() {
+    let mut builder = BuildEncryptor::new(
+        binding().project_id,
+        binding().build_id,
+        Limits {
+            max_plaintext_bytes: 4,
+            ..Limits::default()
+        },
+    )
+    .unwrap();
+    let object_id = binding().object_id;
+
+    assert!(matches!(
+        builder.encrypt(object_id, b"too long", CompressionPolicy::None),
+        Err(CryptoError::Store(StoreError::Limit))
+    ));
+    assert!(builder.used_ids.is_empty());
+    assert!(builder.prefixes.is_empty());
+
+    let encrypted = builder
+        .encrypt(object_id, b"okay", CompressionPolicy::None)
+        .unwrap();
+    let object = EncryptedObject::parse(&encrypted, Limits::default()).unwrap();
+    assert!(builder.used_ids.contains(&object_id));
+    assert!(builder.prefixes.contains(&object.header.nonce_prefix));
+    assert!(matches!(
+        builder.encrypt(object_id, b"okay", CompressionPolicy::None),
+        Err(CryptoError::DuplicateObject)
+    ));
+}
+
+#[test]
 fn empty_small_and_multi_megabyte_objects_round_trip() {
     for plaintext in [
         vec![],

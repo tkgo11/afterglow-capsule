@@ -221,9 +221,12 @@ fn validate_field_value(
         }
         FieldType::TagList => {
             strings()
-                && value
-                    .as_array()
-                    .is_some_and(|items| !field.required || !require_complete || !items.is_empty())
+                && value.as_array().is_some_and(|items| {
+                    (!field.required || !require_complete || !items.is_empty())
+                        && items
+                            .iter()
+                            .all(|value| value.as_str().is_some_and(|tag| !tag.trim().is_empty()))
+                })
         }
         FieldType::Url => value.as_str().is_some_and(valid_external_url),
     };

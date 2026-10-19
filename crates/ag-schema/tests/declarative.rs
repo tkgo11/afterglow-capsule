@@ -51,6 +51,32 @@ fn every_field_type_round_trips_and_checks_its_value() {
 }
 
 #[test]
+fn tag_lists_reject_blank_tags() {
+    let schema = CustomSchema {
+        fields: vec![FieldDefinition {
+            id: "tags".into(),
+            label: "Tags".into(),
+            field_type: FieldType::TagList,
+            visibility: Visibility::PrivateEncrypted,
+            required: true,
+            choices: vec![],
+        }],
+    };
+
+    assert!(
+        schema
+            .validate_values(&FieldValues::from([("tags".into(), json!(["one", "two"]))]))
+            .is_ok()
+    );
+    for tags in [json!([" "]), json!(["one", "\t\n"])] {
+        let values = FieldValues::from([("tags".into(), tags)]);
+        assert!(schema.validate_values(&values).is_err());
+        assert!(schema.validate_partial_values(&values).is_err());
+    }
+    assert!(schema.validate_partial_values(&FieldValues::new()).is_ok());
+}
+
+#[test]
 fn schema_rejects_duplicates_unknown_values_wrong_types_and_reversed_dates() {
     let field = FieldDefinition {
         id: "field".into(),
