@@ -244,6 +244,48 @@ fn private_class_cannot_enter_public_store_and_duplicate_ids_fail() {
 }
 
 #[test]
+fn failed_private_append_does_not_poison_corrected_retry() {
+    let manifest = fixtures::manifest();
+    let id = manifest.private_manifest_id;
+    let limits = Limits {
+        max_store_bytes: 200,
+        max_plaintext_bytes: 100,
+        ..Limits::default()
+    };
+    let mut assembler = CapsuleAssembler::new(manifest, limits).unwrap();
+    assembler
+        .add_public(StableId::random(), ObjectClass::PublicImage, &[0x5a; 50])
+        .unwrap();
+
+    assert!(matches!(
+        assembler.add_private(
+            id,
+            ObjectClass::PrivateJson,
+            &[0x7b; 50],
+            CompressionPolicy::None,
+        ),
+        Err(CapsuleError::Layout)
+    ));
+    assembler
+        .add_private(
+            id,
+            ObjectClass::PrivateJson,
+            &[0x7b; 20],
+            CompressionPolicy::None,
+        )
+        .unwrap();
+    assert!(matches!(
+        assembler.add_private(
+            id,
+            ObjectClass::PrivateJson,
+            &[0x7b; 20],
+            CompressionPolicy::None,
+        ),
+        Err(CapsuleError::Metadata)
+    ));
+}
+
+#[test]
 fn plaintext_scan_blocks_actual_private_needles_and_empty_checks() {
     assert!(scan_plaintext(b"runtime text and secret", &[b"secret"]).is_err());
     assert!(scan_plaintext(b"anything", &[b""]).is_err());

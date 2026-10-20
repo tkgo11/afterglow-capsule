@@ -127,6 +127,33 @@ fn failed_encryption_does_not_reserve_id_or_nonce_prefix() {
 }
 
 #[test]
+fn rejected_encrypted_representation_does_not_reserve_id_or_nonce_prefix() {
+    let mut builder =
+        BuildEncryptor::new(binding().project_id, binding().build_id, Limits::default()).unwrap();
+    let object_id = binding().object_id;
+
+    let rejected = builder
+        .encrypt_validated(object_id, b"private", CompressionPolicy::None, |_| {
+            Err::<(), _>("does not fit")
+        })
+        .unwrap();
+    assert_eq!(rejected, Err("does not fit"));
+    assert!(builder.used_ids.is_empty());
+    assert!(builder.prefixes.is_empty());
+
+    let encrypted = builder
+        .encrypt(object_id, b"corrected", CompressionPolicy::None)
+        .unwrap();
+    let object = EncryptedObject::parse(&encrypted, Limits::default()).unwrap();
+    assert!(builder.used_ids.contains(&object_id));
+    assert!(builder.prefixes.contains(&object.header.nonce_prefix));
+    assert!(matches!(
+        builder.encrypt(object_id, b"again", CompressionPolicy::None),
+        Err(CryptoError::DuplicateObject)
+    ));
+}
+
+#[test]
 fn empty_small_and_multi_megabyte_objects_round_trip() {
     for plaintext in [
         vec![],

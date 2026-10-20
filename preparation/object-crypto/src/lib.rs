@@ -115,6 +115,35 @@ impl BuildEncryptor {
         plaintext: &[u8],
         policy: CompressionPolicy,
     ) -> Result<Vec<u8>, CryptoError> {
+        let (encrypted, prefix) = self.encrypt_candidate(object_id, plaintext, policy)?;
+        self.commit(object_id, prefix);
+        Ok(encrypted)
+    }
+
+    /// Encrypts an object, then commits its ID and nonce prefix only when the
+    /// caller accepts the complete encrypted representation.
+    pub fn encrypt_validated<T, E>(
+        &mut self,
+        object_id: StableId,
+        plaintext: &[u8],
+        policy: CompressionPolicy,
+        validate: impl FnOnce(&[u8]) -> Result<T, E>,
+    ) -> Result<Result<(Vec<u8>, T), E>, CryptoError> {
+        let (encrypted, prefix) = self.encrypt_candidate(object_id, plaintext, policy)?;
+        let validated = match validate(&encrypted) {
+            Ok(validated) => validated,
+            Err(error) => return Ok(Err(error)),
+        };
+        self.commit(object_id, prefix);
+        Ok(Ok((encrypted, validated)))
+    }
+
+    fn encrypt_candidate(
+        &self,
+        object_id: StableId,
+        plaintext: &[u8],
+        policy: CompressionPolicy,
+    ) -> Result<(Vec<u8>, [u8; 8]), CryptoError> {
         if self.used_ids.contains(&object_id) {
             return Err(CryptoError::DuplicateObject);
         }
@@ -143,9 +172,12 @@ impl BuildEncryptor {
             DEFAULT_CHUNK_SIZE,
             self.limits,
         )?;
+        Ok((encrypted, prefix))
+    }
+
+    fn commit(&mut self, object_id: StableId, prefix: [u8; 8]) {
         self.used_ids.insert(object_id);
         self.prefixes.insert(prefix);
-        Ok(encrypted)
     }
 }
 

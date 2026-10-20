@@ -301,9 +301,24 @@ impl CapsuleAssembler {
             return Err(CapsuleError::Metadata);
         }
         self.reserve(0)?;
-        let encrypted = self.encryptor.encrypt(id, bytes, policy)?;
-        self.reserve(encrypted.len())?;
-        let object = EncryptedObject::parse(&encrypted, self.limits)?;
+        let current_store_bytes = (self.public_store.len() as u64)
+            .checked_add(self.private_store.len() as u64)
+            .ok_or(CapsuleError::Layout)?;
+        let limits = self.limits;
+        let encrypted = self
+            .encryptor
+            .encrypt_validated(id, bytes, policy, |encrypted| {
+                if current_store_bytes
+                    .checked_add(encrypted.len() as u64)
+                    .is_none_or(|total| total > limits.max_store_bytes)
+                {
+                    return Err(CapsuleError::Layout);
+                }
+                EncryptedObject::parse(encrypted, limits)
+                    .map(|object| object.header)
+                    .map_err(CapsuleError::from)
+            })??;
+        let (encrypted, header) = encrypted;
         self.object_ids.insert(id);
         self.manifest.objects.push(ObjectMetadata {
             object_id: id,
@@ -311,16 +326,16 @@ impl CapsuleAssembler {
             offset: self.private_store.len() as u64,
             length: encrypted.len() as u64,
             plaintext_length: bytes.len() as u64,
-            compression: match object.header.compression {
+            compression: match header.compression {
                 ag_prepared_object_store::Compression::None => ag_schema::Compression::None,
                 ag_prepared_object_store::Compression::Zstandard => {
                     ag_schema::Compression::Zstandard
                 }
             },
             protection: ObjectProtection::Private {
-                nonce_prefix: object.header.nonce_prefix,
-                chunk_count: object.header.chunk_count,
-                chunk_size: object.header.chunk_size,
+                nonce_prefix: header.nonce_prefix,
+                chunk_count: header.chunk_count,
+                chunk_size: header.chunk_size,
             },
         });
         self.private_store.extend_from_slice(&encrypted);
