@@ -1,12 +1,38 @@
 # SPIKE ONLY. Pure protocol checks are also exercised with synthetic unit fixtures.
 Set-StrictMode -Version Latest
-function Initialize-SpikeDProcessExitCode {
+function Start-SpikeDProcess {
+    param(
+        [Parameter(Mandatory=$true)][string]$FilePath,
+        [string[]]$ArgumentList = @(),
+        [Parameter(Mandatory=$true)][string]$StandardOutputPath,
+        [Parameter(Mandatory=$true)][string]$StandardErrorPath
+    )
+    # Windows PowerShell can lose ExitCode when Start-Process returns after a
+    # short-lived redirected child has already exited. Owning the native
+    # Process instance from Start() keeps the handle and exit status reliable.
+    $StartInfo = New-Object Diagnostics.ProcessStartInfo
+    $StartInfo.FileName = $FilePath
+    $StartInfo.Arguments = [string]::Join(' ', $ArgumentList)
+    $StartInfo.UseShellExecute = $false
+    $StartInfo.CreateNoWindow = $true
+    $StartInfo.RedirectStandardOutput = $true
+    $StartInfo.RedirectStandardError = $true
+    $Process = New-Object Diagnostics.Process
+    $Process.StartInfo = $StartInfo
+    if (-not $Process.Start()) { $Process.Dispose(); throw "Could not start child process: $FilePath" }
+    $Process | Add-Member -NotePropertyName SpikeDStandardOutputTask -NotePropertyValue $Process.StandardOutput.ReadToEndAsync()
+    $Process | Add-Member -NotePropertyName SpikeDStandardErrorTask -NotePropertyValue $Process.StandardError.ReadToEndAsync()
+    $Process | Add-Member -NotePropertyName SpikeDStandardOutputPath -NotePropertyValue $StandardOutputPath
+    $Process | Add-Member -NotePropertyName SpikeDStandardErrorPath -NotePropertyValue $StandardErrorPath
+    return $Process
+}
+function Complete-SpikeDProcess {
     param([Parameter(Mandatory=$true)][Diagnostics.Process]$Process)
-    # Some Windows/PowerShell combinations leave ExitCode unset after
-    # WaitForExit when Start-Process created the process. Acquiring the native
-    # handle up front makes the eventual exit status available reliably.
-    try { $null = $Process.Handle }
-    catch { throw "Could not acquire the child process handle: $($_.Exception.Message)" }
+    $Process.WaitForExit()
+    $Encoding = New-Object Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText($Process.SpikeDStandardOutputPath, $Process.SpikeDStandardOutputTask.GetAwaiter().GetResult(), $Encoding)
+    [IO.File]::WriteAllText($Process.SpikeDStandardErrorPath, $Process.SpikeDStandardErrorTask.GetAwaiter().GetResult(), $Encoding)
+    return $Process.ExitCode
 }
 function Get-SpikeDField {
     param($Object, [string]$Name)

@@ -58,14 +58,13 @@ foreach ($Size in @(@(960, 640), @(1440, 900), @(1920, 1080))) {
         $TransportFailure = $null
         $AbortSession = $false
         try {
-            $Process = Start-Process -FilePath $Exe -ArgumentList $Arguments -PassThru -NoNewWindow -RedirectStandardOutput $Raw -RedirectStandardError $Stderr
-            Initialize-SpikeDProcessExitCode $Process
+            $Process = Start-SpikeDProcess -FilePath $Exe -ArgumentList $Arguments -StandardOutputPath $Raw -StandardErrorPath $Stderr
             if (-not $Process.WaitForExit(140000)) {
                 $Process.Kill()
                 if (-not $Process.WaitForExit(5000)) { $AbortSession = $true; throw 'Terminated probe failed to exit within the bounded cleanup deadline' }
                 $TransportFailure = 'collector bounded timeout: probe was terminated'
             }
-            $ExitCode = $Process.ExitCode
+            $ExitCode = Complete-SpikeDProcess $Process
         } catch { $TransportFailure = $_.Exception.Message }
         finally { if ($null -ne $Process) { $Process.Dispose() } }
         if (-not (Test-Path $Raw)) { [IO.File]::WriteAllText($Raw, '') }

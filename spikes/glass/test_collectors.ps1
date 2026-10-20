@@ -9,14 +9,16 @@ foreach ($Path in @('collector_common.ps1', 'collect_matrix.ps1', 'run_all_gpu_v
     if ($Errors.Count) { throw ($Errors | Out-String) }
 }
 $ExitProbeOutput = Join-Path ([IO.Path]::GetTempPath()) ("afterglow-exit-probe-" + [guid]::NewGuid() + '.log')
-$ExitProbe = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/c', 'exit 0') -NoNewWindow -PassThru -RedirectStandardOutput $ExitProbeOutput
-Initialize-SpikeDProcessExitCode $ExitProbe
+$ExitProbeError = $ExitProbeOutput + '.stderr.log'
+$ExitProbe = Start-SpikeDProcess -FilePath $env:ComSpec -ArgumentList @('/d', '/c', 'exit 0') -StandardOutputPath $ExitProbeOutput -StandardErrorPath $ExitProbeError
 try {
     if (-not $ExitProbe.WaitForExit(30000)) { $ExitProbe.Kill(); throw 'Exit-code regression child timed out' }
-    if ($null -eq $ExitProbe.ExitCode -or $ExitProbe.ExitCode -ne 0) { throw 'Initialized child process did not expose its successful exit code' }
+    $ExitProbeCode = Complete-SpikeDProcess $ExitProbe
+    if ($null -eq $ExitProbeCode -or $ExitProbeCode -ne 0) { throw 'Owned child process did not expose its successful exit code' }
 } finally {
     $ExitProbe.Dispose()
     Remove-Item -LiteralPath $ExitProbeOutput -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $ExitProbeError -Force -ErrorAction SilentlyContinue
 }
 function New-SyntheticProtocolFixture {
     $Header = @{ format_name = 'afterglow-spike-d-event'; format_version = 2; minimum_reader_version = 2 }

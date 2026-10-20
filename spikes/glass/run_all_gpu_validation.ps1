@@ -31,11 +31,11 @@ $InventoryDirectory = Join-Path $OutputDirectory "inventory/$InventoryId"
 New-Item -ItemType Directory -Path $InventoryDirectory -Force | Out-Null
 $Raw = Join-Path $InventoryDirectory 'adapters.jsonl'
 $Stderr = Join-Path $InventoryDirectory 'stderr.log'
-$Process = Start-Process -FilePath $Exe -ArgumentList '--list-adapters' -NoNewWindow -PassThru -RedirectStandardOutput $Raw -RedirectStandardError $Stderr
-Initialize-SpikeDProcessExitCode $Process
+$Process = Start-SpikeDProcess -FilePath $Exe -ArgumentList @('--list-adapters') -StandardOutputPath $Raw -StandardErrorPath $Stderr
 try {
-    if (-not $Process.WaitForExit(30000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Inventory termination cleanup timed out' }; throw 'Adapter inventory timed out' }
-    if ($Process.ExitCode -ne 0) { throw "Adapter inventory failed; inspect $InventoryDirectory" }
+    if (-not $Process.WaitForExit(30000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Inventory termination cleanup timed out' }; $null = Complete-SpikeDProcess $Process; throw 'Adapter inventory timed out' }
+    $Code = Complete-SpikeDProcess $Process
+    if ($Code -ne 0) { throw "Adapter inventory failed; inspect $InventoryDirectory" }
 } finally { $Process.Dispose() }
 $Records = @(Read-SpikeDRecords $Raw)
 $Inventories = @($Records | Where-Object { $_.format_name -eq 'afterglow-spike-d-event' -and $_.format_version -eq 2 -and $_.minimum_reader_version -eq 2 -and $_.event -eq 'adapter_inventory' })
@@ -83,11 +83,10 @@ foreach ($Scale in $Scales) {
 }
 $SummaryPath = Join-Path $OutputDirectory ('validation-' + [guid]::NewGuid().ToString() + '.json')
 $SummaryError = $SummaryPath + '.stderr.log'
-$Process = Start-Process -FilePath $Validator -ArgumentList @('validate-spike-d', ('"' + $OutputDirectory + '"')) -NoNewWindow -PassThru -RedirectStandardOutput $SummaryPath -RedirectStandardError $SummaryError
-Initialize-SpikeDProcessExitCode $Process
+$Process = Start-SpikeDProcess -FilePath $Validator -ArgumentList @('validate-spike-d', ('"' + $OutputDirectory + '"')) -StandardOutputPath $SummaryPath -StandardErrorPath $SummaryError
 try {
-    if (-not $Process.WaitForExit(60000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Validator termination cleanup timed out' }; throw 'Strict evidence validator timed out' }
-    $Code = $Process.ExitCode
+    if (-not $Process.WaitForExit(60000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Validator termination cleanup timed out' }; $null = Complete-SpikeDProcess $Process; throw 'Strict evidence validator timed out' }
+    $Code = Complete-SpikeDProcess $Process
 } finally { $Process.Dispose() }
 Get-Content -Raw $SummaryPath | Write-Output
 Write-Host "Strict validator exit code $Code (0 PASS, 1 FAIL, 2 PENDING). Raw logs, failed attempts and null human observations are preserved in $OutputDirectory."

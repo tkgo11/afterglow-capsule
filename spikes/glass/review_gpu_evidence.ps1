@@ -118,11 +118,10 @@ if (-not (Test-Path $Validator)) { throw 'EvidenceValidator.exe is missing from 
 $Arguments = @('validate-spike-d', ('"' + $OutputDirectory + '"'))
 if ($TrustedProvenance) { $Arguments += @('--trusted-provenance', ('"' + $TrustedProvenance + '"')) }
 $Summary = Join-Path $ReviewDirectory 'validation.json'
-$Process = Start-Process -FilePath $Validator -ArgumentList $Arguments -NoNewWindow -PassThru -RedirectStandardOutput $Summary -RedirectStandardError (Join-Path $ReviewDirectory 'validator.stderr.log')
-Initialize-SpikeDProcessExitCode $Process
+$Process = Start-SpikeDProcess -FilePath $Validator -ArgumentList $Arguments -StandardOutputPath $Summary -StandardErrorPath (Join-Path $ReviewDirectory 'validator.stderr.log')
 try {
-    if (-not $Process.WaitForExit(60000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Validator termination cleanup timed out' }; throw 'Evidence validator timed out' }
-    $Code = $Process.ExitCode
+    if (-not $Process.WaitForExit(60000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Validator termination cleanup timed out' }; $null = Complete-SpikeDProcess $Process; throw 'Evidence validator timed out' }
+    $Code = Complete-SpikeDProcess $Process
 } finally { $Process.Dispose() }
 Get-Content -Raw $Summary | Write-Output
 Write-Host "Original records preserved in $ReviewDirectory. Strict validation exit $Code (0 PASS, 1 FAIL, 2 PENDING)."
