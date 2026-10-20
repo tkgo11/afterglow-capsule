@@ -32,6 +32,7 @@ New-Item -ItemType Directory -Path $InventoryDirectory -Force | Out-Null
 $Raw = Join-Path $InventoryDirectory 'adapters.jsonl'
 $Stderr = Join-Path $InventoryDirectory 'stderr.log'
 $Process = Start-Process -FilePath $Exe -ArgumentList '--list-adapters' -NoNewWindow -PassThru -RedirectStandardOutput $Raw -RedirectStandardError $Stderr
+Initialize-SpikeDProcessExitCode $Process
 try {
     if (-not $Process.WaitForExit(30000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Inventory termination cleanup timed out' }; throw 'Adapter inventory timed out' }
     if ($Process.ExitCode -ne 0) { throw "Adapter inventory failed; inspect $InventoryDirectory" }
@@ -83,6 +84,7 @@ foreach ($Scale in $Scales) {
 $SummaryPath = Join-Path $OutputDirectory ('validation-' + [guid]::NewGuid().ToString() + '.json')
 $SummaryError = $SummaryPath + '.stderr.log'
 $Process = Start-Process -FilePath $Validator -ArgumentList @('validate-spike-d', ('"' + $OutputDirectory + '"')) -NoNewWindow -PassThru -RedirectStandardOutput $SummaryPath -RedirectStandardError $SummaryError
+Initialize-SpikeDProcessExitCode $Process
 try {
     if (-not $Process.WaitForExit(60000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Validator termination cleanup timed out' }; throw 'Strict evidence validator timed out' }
     $Code = $Process.ExitCode

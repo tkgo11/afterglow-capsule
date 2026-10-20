@@ -59,6 +59,7 @@ foreach ($Size in @(@(960, 640), @(1440, 900), @(1920, 1080))) {
         $AbortSession = $false
         try {
             $Process = Start-Process -FilePath $Exe -ArgumentList $Arguments -PassThru -NoNewWindow -RedirectStandardOutput $Raw -RedirectStandardError $Stderr
+            Initialize-SpikeDProcessExitCode $Process
             if (-not $Process.WaitForExit(140000)) {
                 $Process.Kill()
                 if (-not $Process.WaitForExit(5000)) { $AbortSession = $true; throw 'Terminated probe failed to exit within the bounded cleanup deadline' }

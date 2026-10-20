@@ -8,6 +8,16 @@ foreach ($Path in @('collector_common.ps1', 'collect_matrix.ps1', 'run_all_gpu_v
     [Management.Automation.Language.Parser]::ParseFile((Join-Path $PSScriptRoot $Path), [ref]$Tokens, [ref]$Errors) | Out-Null
     if ($Errors.Count) { throw ($Errors | Out-String) }
 }
+$ExitProbeOutput = Join-Path ([IO.Path]::GetTempPath()) ("afterglow-exit-probe-" + [guid]::NewGuid() + '.log')
+$ExitProbe = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/c', 'exit 0') -NoNewWindow -PassThru -RedirectStandardOutput $ExitProbeOutput
+Initialize-SpikeDProcessExitCode $ExitProbe
+try {
+    if (-not $ExitProbe.WaitForExit(30000)) { $ExitProbe.Kill(); throw 'Exit-code regression child timed out' }
+    if ($null -eq $ExitProbe.ExitCode -or $ExitProbe.ExitCode -ne 0) { throw 'Initialized child process did not expose its successful exit code' }
+} finally {
+    $ExitProbe.Dispose()
+    Remove-Item -LiteralPath $ExitProbeOutput -Force -ErrorAction SilentlyContinue
+}
 function New-SyntheticProtocolFixture {
     $Header = @{ format_name = 'afterglow-spike-d-event'; format_version = 2; minimum_reader_version = 2 }
     $Start = $Header.Clone()
@@ -34,7 +44,7 @@ function Invoke-SyntheticCheck {
     param([object[]]$Records, [int]$ExitCode = 0)
     return Test-SpikeDProtocol -Records $Records -GpuClass integrated -DpiPercent 150 -Width 960 -Height 640 -Mode full -ExitCode $ExitCode
 }
-$Tests = 0
+$Tests = 1
 function Assert-Rejected {
     param([object[]]$Records, [string]$Description, [int]$ExitCode = 0)
     $Checked = Invoke-SyntheticCheck $Records $ExitCode

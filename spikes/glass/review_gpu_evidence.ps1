@@ -119,6 +119,7 @@ $Arguments = @('validate-spike-d', ('"' + $OutputDirectory + '"'))
 if ($TrustedProvenance) { $Arguments += @('--trusted-provenance', ('"' + $TrustedProvenance + '"')) }
 $Summary = Join-Path $ReviewDirectory 'validation.json'
 $Process = Start-Process -FilePath $Validator -ArgumentList $Arguments -NoNewWindow -PassThru -RedirectStandardOutput $Summary -RedirectStandardError (Join-Path $ReviewDirectory 'validator.stderr.log')
+Initialize-SpikeDProcessExitCode $Process
 try {
     if (-not $Process.WaitForExit(60000)) { $Process.Kill(); if (-not $Process.WaitForExit(5000)) { throw 'Validator termination cleanup timed out' }; throw 'Evidence validator timed out' }
     $Code = $Process.ExitCode

@@ -1,5 +1,13 @@
 # SPIKE ONLY. Pure protocol checks are also exercised with synthetic unit fixtures.
 Set-StrictMode -Version Latest
+function Initialize-SpikeDProcessExitCode {
+    param([Parameter(Mandatory=$true)][Diagnostics.Process]$Process)
+    # Some Windows/PowerShell combinations leave ExitCode unset after
+    # WaitForExit when Start-Process created the process. Acquiring the native
+    # handle up front makes the eventual exit status available reliably.
+    try { $null = $Process.Handle }
+    catch { throw "Could not acquire the child process handle: $($_.Exception.Message)" }
+}
 function Get-SpikeDField {
     param($Object, [string]$Name)
     if ($null -eq $Object) { return $null }
