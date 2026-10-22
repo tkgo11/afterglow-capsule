@@ -1,0 +1,24 @@
+[package]
+name = "ag-prepared-capsule"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ag-capsule.workspace = true
+ag-schema.workspace = true
+ag-prepared-object-store.workspace = true
+ag-prepared-object-crypto.workspace = true
+ag-prepared-timelock.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+semver.workspace = true
+hex = "=0.4.3"
+
+[dev-dependencies]
+serde_json.workspace = true
+chrono.workspace = true
+
+[lints]
+workspace = true

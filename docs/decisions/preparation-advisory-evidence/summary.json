@@ -1,0 +1,82 @@
+{
+  "format_name": "afterglow-dependency-advisory-result",
+  "format_version": 1,
+  "minimum_reader_version": 1,
+  "status": "PASS",
+  "lockfiles_unchanged": true,
+  "source_commit": "2014be8670a9098efb72fc221de804fc6674d893",
+  "tool": "cargo-audit 0.22.2",
+  "advisory_database": {
+    "origin": "https://github.com/RustSec/advisory-db.git",
+    "revision": "7eebec69c352c7191b1f13eb95dd510eeca5d1de"
+  },
+  "results": [
+    {
+      "graph": "root",
+      "status": "PASS",
+      "exit_code": 0,
+      "lockfile": "Cargo.lock",
+      "lockfile_sha256": "5e0c733bb1634a590b75533d1bb512d6d3986b88b731ae810a4aa743b503432d",
+      "reasons": [],
+      "warnings": [],
+      "report": "root-audit.json",
+      "report_sha256": "37142a15ec217182efbf198c39f1fd2236e3fc3adff310340c7c541c1368604d",
+      "stderr": "root-audit.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "graph": "spikes",
+      "status": "PASS",
+      "exit_code": 0,
+      "lockfile": "spikes/Cargo.lock",
+      "lockfile_sha256": "6c9bc4a03356a8e720814c4fb47cbf93452bf94556c45a578e717aea6e136d3a",
+      "reasons": [],
+      "warnings": [
+        {
+          "kind": "unmaintained",
+          "id": "RUSTSEC-2026-0173",
+          "package": "proc-macro-error2",
+          "version": "2.0.1"
+        }
+      ],
+      "report": "spikes-audit.json",
+      "report_sha256": "63f8f437ddaa57fe88913886c3864a405c7c514ee385c0a59b55770d6eac4247",
+      "stderr": "spikes-audit.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "graph": "fuzz",
+      "status": "PASS",
+      "exit_code": 0,
+      "lockfile": "fuzz/Cargo.lock",
+      "lockfile_sha256": "ad45e41338d89d4f907070f9cc30331afa65e62bbb14ca9dd34e641aa3de5f34",
+      "reasons": [],
+      "warnings": [],
+      "report": "fuzz-audit.json",
+      "report_sha256": "281f81bd44578dfe80777abf8acb3955e67286a285ffdaaf94e41cb4b9e994c6",
+      "stderr": "fuzz-audit.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "graph": "preparation",
+      "status": "PASS",
+      "exit_code": 0,
+      "lockfile": "preparation/Cargo.lock",
+      "lockfile_sha256": "5a097556ca0dffc90b106d1e78e77405f51b7cf17425835a149cfe340e32394a",
+      "reasons": [],
+      "warnings": [
+        {
+          "kind": "unmaintained",
+          "id": "RUSTSEC-2026-0173",
+          "package": "proc-macro-error2",
+          "version": "2.0.1"
+        }
+      ],
+      "report": "preparation-audit.json",
+      "report_sha256": "b812c831d89aac76af5a590b24cec15880da4d5b5aab9a1cdb4d528b17e88753",
+      "stderr": "preparation-audit.stderr.log",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "scope": "Published RustSec snapshot, no target/severity/advisory exclusions. Informational warnings retained; not a comprehensive audit or phase acceptance."
+}

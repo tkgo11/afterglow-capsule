@@ -1,0 +1,13 @@
+# Canonical input documents are not rewritten by bootstrap formatting.
+/README.md
+/SPEC.md
+/AGENTS.md
+/SECURITY.md
+/docs/external-assumptions.md
+target/
+node_modules/
+dist/
+coverage/
+Cargo.lock
+# Exact raw cargo-audit reports are hashed evidence, not editable source.
+docs/decisions/preparation-advisory-evidence/*-audit.json

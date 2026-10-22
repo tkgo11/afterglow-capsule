@@ -1,0 +1,55 @@
+{
+  "format_name": "afterglow-phase2-trusted-provenance",
+  "format_version": 2,
+  "minimum_reader_version": 2,
+  "spike_a": {
+    "workflow_run_attempt": 1,
+    "source_commit": "bdc78a81578aca9b7e97629894d58ab8ece8bc4f",
+    "repository": "tkgo11/afterglow-capsule",
+    "workflow_path": ".github/workflows/spikes.yml",
+    "workflow_run_id": 39127564125,
+    "status": "PASS",
+    "job_id": 117675803651,
+    "evidence_url": "https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564125/job/117675803651",
+    "review_note": "Reviewed historical Go/Rust compatibility and rejection tests on Linux/Windows; actual future target round 33174510 rejected before publication and decrypted only after local exact-round pinned-chain verification in both directions on Windows. Job succeeded."
+  },
+  "spike_b": {
+    "workflow_run_attempt": 1,
+    "source_commit": "bdc78a81578aca9b7e97629894d58ab8ece8bc4f",
+    "repository": "tkgo11/afterglow-capsule",
+    "workflow_path": ".github/workflows/spikes.yml",
+    "workflow_run_id": 39127564125,
+    "status": "PASS",
+    "job_id": 117675803651,
+    "evidence_url": "https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564125/job/117675803651",
+    "review_note": "Reviewed actual Windows authenticated independent Cloudflare/Netnod NTS receipts using patched rustls 0.23.46 (RTT 2390us/103658us), official operator documentation hashes, and passing Windows untrusted-certificate/timeout tests. Job succeeded."
+  },
+  "spike_c": {
+    "provenance": {
+      "workflow_run_attempt": 1,
+      "source_commit": "bdc78a81578aca9b7e97629894d58ab8ece8bc4f",
+      "repository": "tkgo11/afterglow-capsule",
+      "workflow_path": ".github/workflows/spikes.yml",
+      "workflow_run_id": 39127564125
+    },
+    "expected_manifest_sha256": "4569cf87cd1c452dbd1c52a30dcaa0b92370261305c0609438c006d5b9738eb7",
+    "exe_sha256": "c155d1653e8c125341e29abc3bd32c0ffc994e4ec27d6cd433dffa4cbb614a8e",
+    "artifact_id": 12135914286,
+    "zip_sha256": "859316acc7645deee65b6d945c38ed01e2121f17011246f73abc49a0c9f52c68",
+    "artifact_url": "https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564125/artifacts/12135914286"
+  },
+  "spike_d": {
+    "provenance": {
+      "repository": "tkgo11/afterglow-capsule",
+      "workflow_path": ".github/workflows/spikes.yml",
+      "workflow_run_id": 39127564125,
+      "source_commit": "bdc78a81578aca9b7e97629894d58ab8ece8bc4f",
+      "workflow_run_attempt": 1
+    },
+    "expected_manifest_sha256": "15f0c4ca82786d9abd234a284b8d1056cb3f33e5160eeee53347e5ac1105e6ad",
+    "exe_sha256": "c3e56b7d6f2ee7334ac02c96df0aaf5cd68a7bce12f0fbdc703804cd179d9edb",
+    "artifact_id": 12136394485,
+    "zip_sha256": "9c641ddfa457bb620a8d49e42a22d526f2abf60cad86daba8e3a3aedf5a303ff",
+    "artifact_url": "https://github.com/tkgo11/afterglow-capsule/actions/runs/39127564125/artifacts/12136394485"
+  }
+}

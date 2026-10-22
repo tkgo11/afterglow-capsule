@@ -1,0 +1,3 @@
+[workspace]
+members = ["timelock", "nts", "pe", "glass", "evidence"]
+resolver = "3"

@@ -1,0 +1,8 @@
+# Metadata only; no production runtime template exists in Phase 0.
+format_name = "afterglow-runtime-template"
+format_version = 1
+minimum_reader_version = 1
+runtime_version = "0.1.0"
+runtime_package = "afterglow-viewer"
+target = "x86_64-pc-windows-msvc"
+status = "scaffold"

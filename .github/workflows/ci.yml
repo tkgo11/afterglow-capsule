@@ -1,0 +1,185 @@
+name: Workspace checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-advisories:
+    name: Rust dependency advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python -m unittest scripts.test_check_advisories
+      - run: rustup show
+      - name: Populate all locked registry metadata for yank checks
+        run: |
+          cargo fetch --locked
+          cargo fetch --manifest-path spikes/Cargo.toml --locked
+          cargo fetch --manifest-path fuzz/Cargo.toml --locked
+          cargo fetch --manifest-path preparation/Cargo.toml --locked
+      - run: cargo install cargo-audit --version 0.22.2 --locked --no-default-features
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: RustSec/advisory-db
+          path: advisory-db
+          persist-credentials: false
+      - name: Scan every lock without advisory or platform exclusions
+        run: python scripts/check_advisories.py --db advisory-db --output dependency-evidence
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
+        with:
+          name: rust-advisory-evidence
+          path: dependency-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  frontend-advisories:
+    name: Frontend dependency advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - run: npm install --global npm@11.9.0
+      - run: npm ci
+      - name: Scan production and development dependencies
+        shell: bash
+        run: |
+          mkdir -p dependency-evidence
+          git rev-parse HEAD > dependency-evidence/source-commit.txt
+          sha256sum package-lock.json > dependency-evidence/package-lock.sha256
+          npm --version > dependency-evidence/npm-version.txt
+          npm audit --audit-level=info --json | tee dependency-evidence/npm-audit.json
+          sha256sum --check dependency-evidence/package-lock.sha256
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
+        with:
+          name: frontend-advisory-evidence
+          path: dependency-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  preparation:
+    name: Unaccepted software preparation (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - run: cargo test --manifest-path preparation/Cargo.toml --locked --workspace --all-targets
+      - run: cargo fmt --manifest-path preparation/Cargo.toml --all -- --check
+      - run: cargo clippy --manifest-path preparation/Cargo.toml --locked --workspace --all-targets -- -D warnings
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Prepared adapter versus official Go reference
+        shell: bash
+        run: |
+          cargo build --manifest-path preparation/Cargo.toml --locked -p ag-prepared-timelock --example compatibility
+          go build -C spikes/timelock/go -mod=readonly -o "${{ github.workspace }}/preparation/target/go-reference${{ runner.os == 'Windows' && '.exe' || '' }}" .
+          python preparation/timelock/check_reference.py --rust "preparation/target/debug/examples/compatibility${{ runner.os == 'Windows' && '.exe' || '' }}" --go "preparation/target/go-reference${{ runner.os == 'Windows' && '.exe' || '' }}"
+
+  bootstrap:
+    name: Bootstrap (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup show
+      - name: Rust tests
+        run: cargo test --locked --workspace --all-targets
+      - name: Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Rust lint
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - name: Install pinned npm
+        run: npm install --global npm@11.9.0
+      - name: Install locked frontend dependencies
+        run: npm ci
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Bootstrap topology and pins
+        run: python scripts/check_bootstrap.py
+      - name: Builder frontend tests
+        run: npm test
+      - name: Frontend and documentation formatting
+        run: npm run format:check
+      - name: Svelte and TypeScript checks
+        run: npm run check
+      - name: Frontend lint
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build
+
+  fuzz-harnesses:
+    name: Core and prepared object parser fuzz harnesses
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: rustup show
+      - run: cargo check --manifest-path fuzz/Cargo.toml --locked --bins
+      - run: cargo fmt --manifest-path fuzz/Cargo.toml --all -- --check
+
+  fuzz-smoke:
+    name: Instrumented core and prepared object parser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install nightly-2025-09-15 --profile minimal
+      - run: cargo +nightly-2025-09-15 install cargo-fuzz --version 0.13.2 --locked
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python scripts/run_fuzz_smoke.py
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: ${{ !cancelled() }}
+        with:
+          name: phase-1-parser-fuzz-smoke
+          path: fuzz/target/smoke-evidence/
+          if-no-files-found: error
+          retention-days: 14
