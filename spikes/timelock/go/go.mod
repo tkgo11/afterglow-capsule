@@ -1,16 +1,14 @@
 module afterglow-spike-a-reference
 
-go 1.23.0
-
-toolchain go1.23.2
+go 1.26.8
 
 require (
 	filippo.io/age v1.2.1
 	github.com/drand/drand/v2 v2.1.2
 	github.com/drand/go-clients v0.2.3
-	github.com/drand/kyber v1.3.1
-	github.com/drand/kyber-bls12381 v0.3.3
-	github.com/stretchr/testify v1.10.0
+	github.com/drand/kyber v1.3.3
+	github.com/drand/kyber-bls12381 v0.3.5
+	github.com/stretchr/testify v1.12.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -39,10 +37,10 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/grpc v1.72.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
